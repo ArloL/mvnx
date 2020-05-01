@@ -109,7 +109,7 @@ public class MavenExecutorTest {
 	@Test
 	public void testOrgHamcrestHamcrestParent11() throws Exception {
 		Collection<Dependency> dependencies = projectDependencies("org.hamcrest:hamcrest-parent:1.1");
-		assertThat(dependencies).containsExactly(d("org.hamcrest:hamcrest-parent:1.1"));
+		assertThat(dependencies).isEmpty();
 	}
 
 	@Test
@@ -135,9 +135,10 @@ public class MavenExecutorTest {
 		Collection<Dependency> dependencies = projectDependencies(
 				"org.eclipse.jgit:org.eclipse.jgit:5.6.1.202002131546-r");
 		assertThat(dependencies).containsExactly(d("org.eclipse.jgit:org.eclipse.jgit:5.6.1.202002131546-r"),
-				d("com.jcraft:jsch:0.1.55"), d("com.jcraft:jzlib:1.1.1"), d("com.googlecode.javaewah:JavaEWAH:1.1.6"),
-				d("org.slf4j:slf4j-api:1.7.2"), d("org.bouncycastle:bcpg-jdk15on:1.64"),
-				d("org.bouncycastle:bcprov-jdk15on:1.64"), d("org.bouncycastle:bcpkix-jdk15on:1.64"));
+				d("com.jcraft:jsch:0.1.55"), d("com.jcraft:jzlib:1.1.1"),
+				d("com.googlecode.javaewah:JavaEWAH:1.1.6:bundle"), d("org.slf4j:slf4j-api:1.7.2"),
+				d("org.bouncycastle:bcpg-jdk15on:1.64"), d("org.bouncycastle:bcprov-jdk15on:1.64"),
+				d("org.bouncycastle:bcpkix-jdk15on:1.64"));
 	}
 
 	@Test
@@ -188,7 +189,7 @@ public class MavenExecutorTest {
 		Collection<Dependency> dependencies = projectDependencies("io.github.arlol:newlinechecker:0.0.1-SNAPSHOT");
 		assertThat(dependencies).containsExactly(d("io.github.arlol:newlinechecker:0.0.1-SNAPSHOT"),
 				d("org.eclipse.jgit:org.eclipse.jgit:5.6.1.202002131546-r"), d("com.jcraft:jsch:0.1.55"),
-				d("com.jcraft:jzlib:1.1.1"), d("com.googlecode.javaewah:JavaEWAH:1.1.6"),
+				d("com.jcraft:jzlib:1.1.1"), d("com.googlecode.javaewah:JavaEWAH:1.1.6:bundle"),
 				d("org.slf4j:slf4j-api:1.7.30"), d("org.bouncycastle:bcpg-jdk15on:1.64"),
 				d("org.bouncycastle:bcprov-jdk15on:1.64"), d("org.bouncycastle:bcpkix-jdk15on:1.64"),
 				d("org.slf4j:slf4j-nop:1.7.30"));
@@ -197,7 +198,7 @@ public class MavenExecutorTest {
 	@Test
 	public void testDependencyWithTransientDependencies() throws Exception {
 		Collection<Dependency> dependencies = projectDependencies("io.github.arlol:newlinechecker2:0.0.1-SNAPSHOT");
-		assertThat(dependencies).containsExactly(d("io.github.arlol:newlinechecker:0.0.1-SNAPSHOT"),
+		assertThat(dependencies).containsExactly(d("io.github.arlol:newlinechecker2:0.0.1-SNAPSHOT"),
 				d("org.slf4j:slf4j-nop:1.7.30"), d("org.slf4j:slf4j-api:1.7.30"));
 	}
 
@@ -216,12 +217,24 @@ public class MavenExecutorTest {
 		assertThat(template).isEqualTo("averyspecificsystempropertyvalue");
 	}
 
+	/**
+	 * groupId:artifactId:version[:type][:classifier]
+	 */
 	public Dependency d(String artifact) {
 		Dependency dependency = new Dependency();
 		String[] parts = artifact.split(":");
 		dependency.groupId = parts[0];
 		dependency.artifactId = parts[1];
 		dependency.version = parts[2];
+		if (parts.length > 3) {
+			dependency.type = parts[3];
+		} else {
+			dependency.type = "jar";
+		}
+		if (parts.length > 4) {
+			dependency.classifier = parts[4];
+		}
+		dependency.scope = "compile";
 		return dependency;
 	}
 
@@ -238,9 +251,24 @@ public class MavenExecutorTest {
 		return mavenExecutor.project(d(artifact), Collections.emptyList());
 	}
 
+	public Dependency dependency(String artifact) {
+		Dependency dependency = d(artifact);
+		MavenExecutor mavenExecutor = new MavenExecutor();
+		mavenExecutor.localRepository = localRepository;
+		mavenExecutor.repositories = Collections.singleton("https://repo1.maven.org/maven2/");
+		dependency.project = mavenExecutor.project(dependency, Collections.emptyList());
+		return dependency;
+	}
+
 	public Collection<Dependency> projectDependencies(String artifact) throws Exception {
-		Project project = project(artifact);
-		Collection<Dependency> dependencies = MavenExecutor.projectDependencies(project, project);
+		MavenExecutor mavenExecutor = new MavenExecutor();
+		mavenExecutor.dependency = dependency(artifact);
+		mavenExecutor.localRepository = localRepository;
+		mavenExecutor.repositories = Collections.singleton("https://repo1.maven.org/maven2/");
+		mavenExecutor.parseProject();
+		Collection<Dependency> dependencies = mavenExecutor.dependency
+				.dependencies(dependency -> !(dependency.type.equals("pom") || "test".equals(dependency.scope)
+						|| "provided".equals(dependency.scope) || dependency.optional));
 		assertThat(dependencies).doesNotHaveDuplicates();
 		return dependencies;
 	}

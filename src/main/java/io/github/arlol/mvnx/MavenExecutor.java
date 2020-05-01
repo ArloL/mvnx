@@ -20,7 +20,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -49,7 +48,6 @@ public class MavenExecutor {
 	Path userHomeM2 = userHomeM2(userHome());
 	Path settingsXml = settingsXml(userHomeM2);
 	Path localRepository;
-	Project project;
 
 	public MavenExecutor parseArguments(String[] arguments) {
 		if (arguments.length == 0) {
@@ -99,7 +97,7 @@ public class MavenExecutor {
 	}
 
 	public void parseProject() {
-		project = project(dependency, Collections.emptyList());
+		dependency.project = project(dependency, Collections.emptyList());
 	}
 
 	public Project project(Dependency dep, List<Project> projects) {
@@ -114,6 +112,7 @@ public class MavenExecutor {
 		List<Element> parentElements = getChildElementsByTagName(projectElement, "parent");
 		if (parentElements.size() == 1) {
 			Dependency dependency = dependencyFromElement(parentElements.get(0));
+			dependency.type = "pom";
 			dependency.project = project(dependency, projects);
 			project.parent = dependency;
 		}
@@ -121,6 +120,7 @@ public class MavenExecutor {
 		project.artifactId = getTextContentFromFirstChildElementByTagName(projectElement, "artifactId");
 		project.groupId = getTextContentFromFirstChildElementByTagName(projectElement, "groupId");
 		project.version = getTextContentFromFirstChildElementByTagName(projectElement, "version");
+		project.packaging = getTextContentFromFirstChildElementByTagName(projectElement, "packaging");
 
 		if (project.groupId == null) {
 			project.groupId = project.parent.groupId;
@@ -128,6 +128,10 @@ public class MavenExecutor {
 		if (project.version == null) {
 			project.version = project.parent.version;
 		}
+		if (project.packaging == null) {
+			project.packaging = "jar";
+		}
+		dep.type = project.packaging;
 
 		project.properties.put("project.version", project.version);
 
@@ -160,6 +164,7 @@ public class MavenExecutor {
 			List<Element> dependencyElements = getChildElementsByTagName(dependenciesElements.get(0), "dependency");
 			for (Element dependencyElement : dependencyElements) {
 				Dependency dependency = dependencyFromElement(dependencyElement);
+				dependency.type = "jar";
 				dependency.version = template(dependency.version, project.properties);
 				project.dependencies.add(dependency);
 			}
@@ -228,9 +233,12 @@ public class MavenExecutor {
 		mavenExecutor.parseArguments(args);
 		mavenExecutor.parseProject();
 		if (mavenExecutor.mainClass == null) {
-			mavenExecutor.mainClass = mavenExecutor.project.properties.get("mainClass");
+			mavenExecutor.mainClass = mavenExecutor.dependency.project.properties.get("mainClass");
 		}
-		URL[] jars = getJarUrls(projectDependencies(mavenExecutor.project, mavenExecutor.project),
+		URL[] jars = getJarUrls(
+				mavenExecutor.dependency
+						.dependencies(dependency -> !(dependency.type.equals("pom") || "test".equals(dependency.scope)
+								|| "provided".equals(dependency.scope) || dependency.optional)),
 				mavenExecutor.localRepository, mavenExecutor.repositories);
 		URLClassLoader classLoader = new URLClassLoader(jars, MavenExecutor.class.getClassLoader());
 		Class<?> classToLoad = Class.forName(mavenExecutor.mainClass, true, classLoader);
@@ -282,28 +290,6 @@ public class MavenExecutor {
 		return result.toArray(URL[]::new);
 	}
 
-	public static Collection<Dependency> projectDependencies(Project rootProject, Project project) {
-		Collection<Dependency> dependencies = new LinkedHashSet<>();
-		if (rootProject == project) {
-			Dependency dependency = new Dependency();
-			dependency.groupId = project.groupId;
-			dependency.artifactId = project.artifactId;
-			dependency.version = project.version;
-			dependency.project = project;
-			dependencies.add(dependency);
-		}
-		if (project.parent != null) {
-			projectDependencies(rootProject, project.parent.project).stream().forEach(dependencies::add);
-		}
-		for (Dependency dependency : project.dependencies) {
-			if (!("test".equals(dependency.scope) || "provided".equals(dependency.scope) || dependency.optional)) {
-				dependencies.add(dependency);
-				projectDependencies(rootProject, dependency.project).stream().forEach(dependencies::add);
-			}
-		}
-		return dependencies;
-	}
-
 	private static void manageDependency(List<Project> projects, Dependency dependency) {
 		String version = null;
 		String scope = null;
@@ -343,6 +329,8 @@ public class MavenExecutor {
 		}
 		if (scope != null) {
 			dependency.scope = scope;
+		} else {
+			dependency.scope = "compile";
 		}
 	}
 
@@ -434,9 +422,9 @@ public class MavenExecutor {
 			depependency.classifier = classifier;
 		}
 
-		String packaging = getTextContentFromFirstChildElementByTagName(element, "packaging");
-		if (packaging != null) {
-			depependency.packaging = packaging;
+		String type = getTextContentFromFirstChildElementByTagName(element, "type");
+		if (type != null) {
+			depependency.type = type;
 		}
 
 		String optional = getTextContentFromFirstChildElementByTagName(element, "optional");

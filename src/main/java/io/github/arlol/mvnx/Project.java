@@ -11,6 +11,7 @@ public class Project {
 	String groupId;
 	String artifactId;
 	String version;
+	String packaging;
 	DependencyManagement dependencyManagement;
 	List<Dependency> dependencies = new ArrayList<>();
 	Map<String, String> properties = new HashMap<>();
