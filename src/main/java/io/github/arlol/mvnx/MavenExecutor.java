@@ -89,10 +89,99 @@ public class MavenExecutor {
 		return this;
 	}
 
+	public void parseProject() {
+		project = project(pomPath(groupId, artifactId, version), Collections.emptyList());
+	}
+
+	public Project project(Path pom, List<Project> projects) {
+		Project project = new Project();
+		projects = new ArrayList<>(projects);
+		projects.add(project);
+
+		Document xmlDocument = xmlDocument(localRepository, pom, project, repositories);
+
+		Element projectElement = xmlDocument.getDocumentElement();
+
+		List<Element> parentElements = getChildElementsByTagName(projectElement, "parent");
+		if (parentElements.size() == 1) {
+			Dependency dependency = dependencyFromElement(parentElements.get(0));
+			dependency.project = project(pomPath(dependency), projects);
+			project.parent = dependency;
+		}
+
+		project.artifactId = getTextContentFromFirstChildElementByTagName(projectElement, "artifactId");
+		project.groupId = getTextContentFromFirstChildElementByTagName(projectElement, "groupId");
+		project.version = getTextContentFromFirstChildElementByTagName(projectElement, "version");
+
+		if (project.groupId == null) {
+			project.groupId = project.parent.groupId;
+		}
+		if (project.version == null) {
+			project.version = project.parent.version;
+		}
+
+		project.properties.put("project.version", project.version);
+
+		List<Element> propertiesElements = getChildElementsByTagName(projectElement, "properties");
+		if (!propertiesElements.isEmpty()) {
+			NodeList propertyNodes = propertiesElements.get(0).getChildNodes();
+			for (int i = 0; i < propertyNodes.getLength(); i++) {
+				Node propertyNode = propertyNodes.item(i);
+				if (propertyNode.getNodeType() == Node.ELEMENT_NODE) {
+					Element propertyElement = (Element) propertyNode;
+					project.properties.put(propertyElement.getTagName(), propertyElement.getTextContent());
+				}
+			}
+		}
+
+		List<Element> dependencyManagementElements = getChildElementsByTagName(projectElement, "dependencyManagement");
+		if (!dependencyManagementElements.isEmpty()) {
+			project.dependencyManagement = new DependencyManagement();
+			NodeList dependencyElements = dependencyManagementElements.get(0).getElementsByTagName("dependency");
+			for (int i = 0; i < dependencyElements.getLength(); i++) {
+				Element dependencyElement = (Element) dependencyElements.item(i);
+				Dependency dependency = dependencyFromElement(dependencyElement);
+				dependency.version = template(dependency.version, project.properties);
+				project.dependencyManagement.dependencies.add(dependency);
+			}
+		}
+
+		List<Element> dependenciesElements = getChildElementsByTagName(projectElement, "dependencies");
+		if (!dependenciesElements.isEmpty()) {
+			List<Element> dependencyElements = getChildElementsByTagName(dependenciesElements.get(0), "dependency");
+			for (Element dependencyElement : dependencyElements) {
+				Dependency dependency = dependencyFromElement(dependencyElement);
+				dependency.version = template(dependency.version, project.properties);
+				project.dependencies.add(dependency);
+			}
+		}
+
+		if (project.parent != null) {
+			Project searchProject = project.parent.project;
+			while (searchProject != null) {
+				for (Dependency dependency : searchProject.dependencies) {
+					String version = dependency.version;
+					manageDependency(projects, dependency);
+					if (!dependency.version.equals(version)) {
+						dependency.project = project(pomPath(dependency), projects);
+					}
+				}
+				searchProject = Optional.ofNullable(searchProject.parent).map(p -> p.project).orElse(null);
+			}
+		}
+
+		for (Dependency dependency : project.dependencies) {
+			manageDependency(projects, dependency);
+			dependency.project = project(pomPath(dependency), projects);
+		}
+
+		return project;
+	}
+
 	public static void main(String[] args) throws Exception {
 		MavenExecutor mavenExecutor = new MavenExecutor();
 		mavenExecutor.parseArguments(args);
-		mavenExecutor.project();
+		mavenExecutor.parseProject();
 		if (mavenExecutor.mainClass == null) {
 			mavenExecutor.mainClass = mavenExecutor.project.properties.get("mainClass");
 		}
@@ -335,95 +424,6 @@ public class MavenExecutor {
 			}
 		}
 		return result;
-	}
-
-	public void project() {
-		project = project(pomPath(groupId, artifactId, version), Collections.emptyList());
-	}
-
-	public Project project(Path pom, List<Project> projects) {
-		Project project = new Project();
-		projects = new ArrayList<>(projects);
-		projects.add(project);
-
-		Document xmlDocument = xmlDocument(localRepository, pom, project, repositories);
-
-		Element projectElement = xmlDocument.getDocumentElement();
-
-		List<Element> parentElements = getChildElementsByTagName(projectElement, "parent");
-		if (parentElements.size() == 1) {
-			Dependency dependency = dependencyFromElement(parentElements.get(0));
-			dependency.project = project(pomPath(dependency), projects);
-			project.parent = dependency;
-		}
-
-		project.artifactId = getTextContentFromFirstChildElementByTagName(projectElement, "artifactId");
-		project.groupId = getTextContentFromFirstChildElementByTagName(projectElement, "groupId");
-		project.version = getTextContentFromFirstChildElementByTagName(projectElement, "version");
-
-		if (project.groupId == null) {
-			project.groupId = project.parent.groupId;
-		}
-		if (project.version == null) {
-			project.version = project.parent.version;
-		}
-
-		project.properties.put("project.version", project.version);
-
-		List<Element> propertiesElements = getChildElementsByTagName(projectElement, "properties");
-		if (!propertiesElements.isEmpty()) {
-			NodeList propertyNodes = propertiesElements.get(0).getChildNodes();
-			for (int i = 0; i < propertyNodes.getLength(); i++) {
-				Node propertyNode = propertyNodes.item(i);
-				if (propertyNode.getNodeType() == Node.ELEMENT_NODE) {
-					Element propertyElement = (Element) propertyNode;
-					project.properties.put(propertyElement.getTagName(), propertyElement.getTextContent());
-				}
-			}
-		}
-
-		List<Element> dependencyManagementElements = getChildElementsByTagName(projectElement, "dependencyManagement");
-		if (!dependencyManagementElements.isEmpty()) {
-			project.dependencyManagement = new DependencyManagement();
-			NodeList dependencyElements = dependencyManagementElements.get(0).getElementsByTagName("dependency");
-			for (int i = 0; i < dependencyElements.getLength(); i++) {
-				Element dependencyElement = (Element) dependencyElements.item(i);
-				Dependency dependency = dependencyFromElement(dependencyElement);
-				dependency.version = template(dependency.version, project.properties);
-				project.dependencyManagement.dependencies.add(dependency);
-			}
-		}
-
-		List<Element> dependenciesElements = getChildElementsByTagName(projectElement, "dependencies");
-		if (!dependenciesElements.isEmpty()) {
-			List<Element> dependencyElements = getChildElementsByTagName(dependenciesElements.get(0), "dependency");
-			for (Element dependencyElement : dependencyElements) {
-				Dependency dependency = dependencyFromElement(dependencyElement);
-				dependency.version = template(dependency.version, project.properties);
-				project.dependencies.add(dependency);
-			}
-		}
-
-		if (project.parent != null) {
-			Project searchProject = project.parent.project;
-			while (searchProject != null) {
-				for (Dependency dependency : searchProject.dependencies) {
-					String version = dependency.version;
-					manageDependency(projects, dependency);
-					if (!dependency.version.equals(version)) {
-						dependency.project = project(pomPath(dependency), projects);
-					}
-				}
-				searchProject = Optional.ofNullable(searchProject.parent).map(p -> p.project).orElse(null);
-			}
-		}
-
-		for (Dependency dependency : project.dependencies) {
-			manageDependency(projects, dependency);
-			dependency.project = project(pomPath(dependency), projects);
-		}
-
-		return project;
 	}
 
 	private static Dependency dependencyFromElement(Element element) {
