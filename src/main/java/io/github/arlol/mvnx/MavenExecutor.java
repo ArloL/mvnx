@@ -1,6 +1,7 @@
 package io.github.arlol.mvnx;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -28,11 +29,13 @@ import java.util.regex.Pattern;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
 public class MavenExecutor {
 
@@ -47,6 +50,7 @@ public class MavenExecutor {
 	List<String> repositories = List.of("https://repo.maven.apache.org/maven2/", "https://jitpack.io/");
 	Path userHomeM2 = userHomeM2(userHome());
 	Path settingsXml = settingsXml(userHomeM2);
+	Path localRepository;
 
 	public MavenExecutor parseArguments(String[] arguments) {
 		if (arguments.length == 0) {
@@ -67,6 +71,9 @@ public class MavenExecutor {
 			case "--settings":
 				settingsXml = Paths.get(arguments[++i]);
 				break;
+			case "--localRepository":
+				localRepository = Paths.get(arguments[++i]);
+				break;
 			case "--":
 				passthroughArguments = Arrays.copyOfRange(arguments, i + 1, arguments.length);
 				i = arguments.length;
@@ -75,20 +82,23 @@ public class MavenExecutor {
 				break;
 			}
 		}
+		if (localRepository == null) {
+			localRepository = localRepository(userHomeM2, settingsXml);
+		}
 		return this;
 	}
 
 	public static void main(String[] args) throws Exception {
 		MavenExecutor mavenExecutor = new MavenExecutor();
 		mavenExecutor.parseArguments(args);
-		Path localRepository = localRepository(mavenExecutor.userHomeM2, mavenExecutor.settingsXml);
-		Project project = project(localRepository,
+		Project project = project(mavenExecutor.localRepository,
 				pomPath(mavenExecutor.groupId, mavenExecutor.artifactId, mavenExecutor.version),
 				Collections.emptyList(), mavenExecutor.repositories);
 		if (mavenExecutor.mainClass == null) {
 			mavenExecutor.mainClass = project.properties.get("mainClass");
 		}
-		URL[] jars = getJarUrls(projectDependencies(project, project), localRepository, mavenExecutor.repositories);
+		URL[] jars = getJarUrls(projectDependencies(project, project), mavenExecutor.localRepository,
+				mavenExecutor.repositories);
 		URLClassLoader classLoader = new URLClassLoader(jars, MavenExecutor.class.getClassLoader());
 		Class<?> classToLoad = Class.forName(mavenExecutor.mainClass, true, classLoader);
 		classToLoad.getMethod("main", new Class[] { mavenExecutor.passthroughArguments.getClass() }).invoke(null,
@@ -219,7 +229,7 @@ public class MavenExecutor {
 		return userHomeM2.resolve("settings.xml");
 	}
 
-	public static Path localRepository(Path userHomeM2, Path settingsXml) throws Exception {
+	public static Path localRepository(Path userHomeM2, Path settingsXml) {
 		if (Files.exists(settingsXml)) {
 			String localRepository = getTextContentFromFirstChildElementByTagName(
 					xmlDocument(settingsXml).getDocumentElement(), "localRepository");
@@ -259,11 +269,15 @@ public class MavenExecutor {
 		return result.toString();
 	}
 
-	public static Document xmlDocument(Path xml) throws Exception {
-		DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-		Document document = documentBuilder.parse(xml.toFile());
-		document.getDocumentElement().normalize();
-		return document;
+	public static Document xmlDocument(Path xml) {
+		try {
+			DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+			Document document = documentBuilder.parse(xml.toFile());
+			document.getDocumentElement().normalize();
+			return document;
+		} catch (SAXException | IOException | ParserConfigurationException e) {
+			throw new IllegalStateException(e);
+		}
 	}
 
 	private static Document xmlDocument(byte[] xml) throws Exception {
