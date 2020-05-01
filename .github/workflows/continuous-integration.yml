@@ -50,6 +50,8 @@ jobs:
         path: target/artifacts
   windows:
     runs-on: windows-latest
+    env:
+      USER: runner
     steps:
     - uses: actions/checkout@v1
     - uses: actions/setup-java@v1
