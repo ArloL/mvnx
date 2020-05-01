@@ -16,8 +16,16 @@
     <artifactId>mvnx</artifactId>
     <version>0.0.1-SNAPSHOT</version>
 
+    <scm>
+        <connection>scm:git:https://github.com/ArloL/mvnx.git</connection>
+        <developerConnection>scm:git:https://github.com/ArloL/mvnx.git</developerConnection>
+        <tag>${sha1}</tag>
+        <url>https://github.com/ArloL/mvnx/</url>
+    </scm>
+
     <properties>
         <java.version>11</java.version>
+        <sha1>HEAD</sha1>
     </properties>
 
     <dependencies>
