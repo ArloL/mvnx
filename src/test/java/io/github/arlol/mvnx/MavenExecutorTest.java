@@ -228,8 +228,11 @@ public class MavenExecutorTest {
 	}
 
 	public Project project(String artifact) throws Exception {
-		return MavenExecutor.project(localRepository, MavenExecutor.pomPath(d(artifact)), Collections.emptyList(),
-				Collections.singleton("https://repo1.maven.org/maven2/"));
+		MavenExecutor mavenExecutor = new MavenExecutor();
+		mavenExecutor.localRepository = localRepository;
+		mavenExecutor.repositories = Collections.singleton("https://repo1.maven.org/maven2/");
+		mavenExecutor.project(MavenExecutor.pomPath(d(artifact)), Collections.emptyList());
+		return mavenExecutor.project;
 	}
 
 	public Collection<Dependency> projectDependencies(String artifact) throws Exception {

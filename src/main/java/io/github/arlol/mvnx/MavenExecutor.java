@@ -47,10 +47,11 @@ public class MavenExecutor {
 	String version;
 	String mainClass;
 	String[] passthroughArguments = new String[0];
-	List<String> repositories = List.of("https://repo.maven.apache.org/maven2/", "https://jitpack.io/");
+	Collection<String> repositories = List.of("https://repo.maven.apache.org/maven2/", "https://jitpack.io/");
 	Path userHomeM2 = userHomeM2(userHome());
 	Path settingsXml = settingsXml(userHomeM2);
 	Path localRepository;
+	Project project;
 
 	public MavenExecutor parseArguments(String[] arguments) {
 		if (arguments.length == 0) {
@@ -91,14 +92,12 @@ public class MavenExecutor {
 	public static void main(String[] args) throws Exception {
 		MavenExecutor mavenExecutor = new MavenExecutor();
 		mavenExecutor.parseArguments(args);
-		Project project = project(mavenExecutor.localRepository,
-				pomPath(mavenExecutor.groupId, mavenExecutor.artifactId, mavenExecutor.version),
-				Collections.emptyList(), mavenExecutor.repositories);
+		mavenExecutor.project();
 		if (mavenExecutor.mainClass == null) {
-			mavenExecutor.mainClass = project.properties.get("mainClass");
+			mavenExecutor.mainClass = mavenExecutor.project.properties.get("mainClass");
 		}
-		URL[] jars = getJarUrls(projectDependencies(project, project), mavenExecutor.localRepository,
-				mavenExecutor.repositories);
+		URL[] jars = getJarUrls(projectDependencies(mavenExecutor.project, mavenExecutor.project),
+				mavenExecutor.localRepository, mavenExecutor.repositories);
 		URLClassLoader classLoader = new URLClassLoader(jars, MavenExecutor.class.getClassLoader());
 		Class<?> classToLoad = Class.forName(mavenExecutor.mainClass, true, classLoader);
 		classToLoad.getMethod("main", new Class[] { mavenExecutor.passthroughArguments.getClass() }).invoke(null,
@@ -149,7 +148,7 @@ public class MavenExecutor {
 		return result.toArray(URL[]::new);
 	}
 
-	public static Collection<Dependency> projectDependencies(Project rootProject, Project project) throws Exception {
+	public static Collection<Dependency> projectDependencies(Project rootProject, Project project) {
 		Collection<Dependency> dependencies = new LinkedHashSet<>();
 		if (rootProject == project) {
 			Dependency dependency = new Dependency();
@@ -338,8 +337,11 @@ public class MavenExecutor {
 		return result;
 	}
 
-	public static Project project(Path localRepository, Path pom, List<Project> projects, Collection<String> remotes)
-			throws Exception {
+	public void project() {
+		project = project(pomPath(groupId, artifactId, version), Collections.emptyList());
+	}
+
+	public Project project(Path pom, List<Project> projects) {
 		Project project = new Project();
 		projects = new ArrayList<>(projects);
 		projects.add(project);
@@ -351,7 +353,7 @@ public class MavenExecutor {
 		List<Element> parentElements = getChildElementsByTagName(projectElement, "parent");
 		if (parentElements.size() == 1) {
 			Dependency dependency = dependencyFromElement(parentElements.get(0));
-			dependency.project = project(localRepository, pomPath(dependency), projects, remotes);
+			dependency.project = project(pomPath(dependency), projects);
 			project.parent = dependency;
 		}
 
@@ -409,7 +411,7 @@ public class MavenExecutor {
 					String version = dependency.version;
 					manageDependency(projects, dependency);
 					if (!dependency.version.equals(version)) {
-						dependency.project = project(localRepository, pomPath(dependency), projects, remotes);
+						dependency.project = project(pomPath(dependency), projects);
 					}
 				}
 				searchProject = Optional.ofNullable(searchProject.parent).map(p -> p.project).orElse(null);
@@ -418,7 +420,7 @@ public class MavenExecutor {
 
 		for (Dependency dependency : project.dependencies) {
 			manageDependency(projects, dependency);
-			dependency.project = project(localRepository, pomPath(dependency), projects, remotes);
+			dependency.project = project(pomPath(dependency), projects);
 		}
 
 		return project;
