@@ -39,12 +39,13 @@ public class MavenExecutor {
 	private static final long TIMEOUT_MS = 10_000;
 
 	public static void main(String[] args) throws Exception {
-		String mainClass = "io.github.arlol.newlinechecker.NewlinecheckerApplication";
 		Path userHomeM2 = userHomeM2(userHome());
 		Path localRepository = localRepository(userHomeM2, settingsXml(userHomeM2));
 		List<String> remotes = List.of("https://repo1.maven.org/maven2/", "https://jitpack.io/");
 		Project project = project(localRepository, pomPath("com.github.ArloL", "newlinechecker", "133576b455"),
 				Collections.emptyList(), remotes);
+		String mainClass = project.properties.getOrDefault("mainClass",
+				"io.github.arlol.newlinechecker.NewlinecheckerApplication");
 		URL[] jars = getJarUrls(projectDependencies(project, project), localRepository, remotes);
 		URLClassLoader classLoader = new URLClassLoader(jars, MavenExecutor.class.getClassLoader());
 		Class<?> classToLoad = Class.forName(mainClass, true, classLoader);
