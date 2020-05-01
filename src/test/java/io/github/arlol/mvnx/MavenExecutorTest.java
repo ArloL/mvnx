@@ -91,7 +91,7 @@ public class MavenExecutorTest {
 	public void testPomWithNoDependenciesAndDependencyManagement() throws Exception {
 		Project project = project("org.slf4j:slf4j-parent:1.7.30");
 		assertThat(project.dependencies).hasSize(1);
-		assertThat(project.dependencyManagement.dependencies).hasSize(4);
+		assertThat(project.dependencyManagement).hasSize(4);
 	}
 
 	@Test

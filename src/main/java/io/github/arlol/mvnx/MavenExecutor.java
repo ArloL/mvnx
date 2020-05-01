@@ -149,13 +149,12 @@ public class MavenExecutor {
 
 		List<Element> dependencyManagementElements = getChildElementsByTagName(projectElement, "dependencyManagement");
 		if (!dependencyManagementElements.isEmpty()) {
-			project.dependencyManagement = new DependencyManagement();
 			NodeList dependencyElements = dependencyManagementElements.get(0).getElementsByTagName("dependency");
 			for (int i = 0; i < dependencyElements.getLength(); i++) {
 				Element dependencyElement = (Element) dependencyElements.item(i);
 				Dependency dependency = dependencyFromElement(dependencyElement);
 				dependency.version = template(dependency.version, project.properties);
-				project.dependencyManagement.dependencies.add(dependency);
+				project.dependencyManagement.add(dependency);
 			}
 		}
 
@@ -308,7 +307,7 @@ public class MavenExecutor {
 					}
 				}
 				if (searchProject.dependencyManagement != null) {
-					findFirst = searchProject.dependencyManagement.dependencies.stream().filter(
+					findFirst = searchProject.dependencyManagement.stream().filter(
 							d -> d.groupId.equals(dependency.groupId) && d.artifactId.equals(dependency.artifactId))
 							.findFirst();
 					if (findFirst.isPresent()) {

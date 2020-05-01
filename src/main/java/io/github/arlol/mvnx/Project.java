@@ -12,7 +12,7 @@ public class Project {
 	String artifactId;
 	String version;
 	String packaging;
-	DependencyManagement dependencyManagement;
+	List<Dependency> dependencyManagement = new ArrayList<>();
 	List<Dependency> dependencies = new ArrayList<>();
 	Map<String, String> properties = new HashMap<>();
 	String remote;
