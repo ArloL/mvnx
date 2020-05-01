@@ -5,7 +5,8 @@ import java.util.List;
 import java.util.Properties;
 
 public class Project {
-	Project parent;
+
+	Dependency parent;
 	String groupId;
 	String artifactId;
 	String version;

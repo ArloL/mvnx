@@ -10,10 +10,17 @@ public class Dependency {
 	String packaging;
 	String classifier;
 	String scope;
+	boolean optional = false;
+	Project project;
+
+	public boolean equalsArtifact(Dependency other) {
+		return Objects.equals(artifactId, other.artifactId) && Objects.equals(classifier, other.classifier)
+				&& Objects.equals(groupId, other.groupId) && Objects.equals(packaging, other.packaging);
+	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(artifactId, classifier, groupId, packaging, scope);
+		return Objects.hash(artifactId, classifier, groupId, packaging, version);
 	}
 
 	@Override
@@ -27,7 +34,7 @@ public class Dependency {
 		Dependency other = (Dependency) obj;
 		return Objects.equals(artifactId, other.artifactId) && Objects.equals(classifier, other.classifier)
 				&& Objects.equals(groupId, other.groupId) && Objects.equals(packaging, other.packaging)
-				&& Objects.equals(scope, other.scope);
+				&& Objects.equals(version, other.version);
 	}
 
 	@Override
