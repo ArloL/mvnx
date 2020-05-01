@@ -280,11 +280,15 @@ public class MavenExecutor {
 		}
 	}
 
-	private static Document xmlDocument(byte[] xml) throws Exception {
-		DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-		Document document = documentBuilder.parse(new ByteArrayInputStream(xml));
-		document.getDocumentElement().normalize();
-		return document;
+	private static Document xmlDocument(byte[] xml) {
+		try {
+			DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+			Document document = documentBuilder.parse(new ByteArrayInputStream(xml));
+			document.getDocumentElement().normalize();
+			return document;
+		} catch (SAXException | IOException | ParserConfigurationException e) {
+			throw new IllegalStateException(e);
+		}
 	}
 
 	private static String getTextContentFromFirstChildElementByTagName(Element element, String tagName) {
