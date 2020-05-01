@@ -49,9 +49,10 @@ jobs:
         name: mvnx artifacts from ${{runner.os}} build
         path: target/artifacts
     - name: Publish to GitHub Packages Apache Maven
-      run: mvn deploy
+      run: |
+        ./mvnw --batch-mode --settings .\.mvn\github-packages-settings.xml deploy
       env:
-        GITHUB_TOKEN: ${{ github.token }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   windows:
     runs-on: windows-latest
     env:
