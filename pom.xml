@@ -9,7 +9,7 @@
 		<version>2.2.5.RELEASE</version>
 	</parent>
 	<groupId>io.github.arlol</groupId>
-	<artifactId>minimaven</artifactId>
+	<artifactId>mvnx</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>demo</name>
 

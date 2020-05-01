@@ -1,4 +1,4 @@
-package io.github.arlol.minimaven;
+package io.github.arlol.mvnx;
 
 import java.util.Objects;
 
