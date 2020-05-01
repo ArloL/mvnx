@@ -17,6 +17,7 @@ jobs:
         restore-keys: ${{ runner.os }}-m2
     - name: Build with Maven
       run: |
+        env
         ./mvnw --batch-mode package
         mkdir target/artifacts
         cp target/mvnx-* target/artifacts
@@ -39,6 +40,7 @@ jobs:
         restore-keys: ${{ runner.os }}-m2
     - name: Build with Maven
       run: |
+        env
         ./mvnw --batch-mode package
         mkdir target/artifacts
         cp target/mvnx-* target/artifacts
@@ -62,6 +64,7 @@ jobs:
     - name: Build with Maven
       shell: cmd
       run: |
+        set
         call .\mvnw --batch-mode package
         mkdir target\artifacts
         copy target\mvnx-* target\artifacts
