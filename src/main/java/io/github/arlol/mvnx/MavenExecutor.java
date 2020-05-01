@@ -42,9 +42,7 @@ public class MavenExecutor {
 	private static final Pattern PROPERTIES_TOKEN = Pattern.compile("\\$\\{([\\w.-]+)\\}");
 	private static final long TIMEOUT_MS = 10_000;
 
-	String groupId;
-	String artifactId;
-	String version;
+	Dependency dependency = new Dependency();
 	String mainClass;
 	String[] passthroughArguments = new String[0];
 	Collection<String> repositories = List.of("https://repo.maven.apache.org/maven2/", "https://jitpack.io/");
@@ -58,9 +56,9 @@ public class MavenExecutor {
 			throw new IllegalArgumentException("Missing artifact identifier");
 		}
 		String[] identifier = arguments[0].split(":");
-		groupId = identifier[0];
-		artifactId = identifier[1];
-		version = identifier[2];
+		dependency.groupId = identifier[0];
+		dependency.artifactId = identifier[1];
+		dependency.version = identifier[2];
 		for (int i = 1; i < arguments.length; i++) {
 			switch (arguments[i]) {
 			case "--repositories":
@@ -101,7 +99,7 @@ public class MavenExecutor {
 	}
 
 	public void parseProject() {
-		project = project(pomPath(groupId, artifactId, version), Collections.emptyList());
+		project = project(pomPath(dependency), Collections.emptyList());
 	}
 
 	public Project project(Path pom, List<Project> projects) {
@@ -349,21 +347,13 @@ public class MavenExecutor {
 	}
 
 	public static Path jarPath(Dependency dependency) {
-		return jarPath(dependency.groupId, dependency.artifactId, dependency.version);
-	}
-
-	public static Path jarPath(String groupId, String artifactId, String version) {
-		return Paths.get(groupId.replace(".", "/")).resolve(artifactId).resolve(version)
-				.resolve(artifactId + "-" + version + ".jar");
+		return Paths.get(dependency.groupId.replace(".", "/")).resolve(dependency.artifactId)
+				.resolve(dependency.version).resolve(dependency.artifactId + "-" + dependency.version + ".jar");
 	}
 
 	public static Path pomPath(Dependency dependency) {
-		return pomPath(dependency.groupId, dependency.artifactId, dependency.version);
-	}
-
-	public static Path pomPath(String groupId, String artifactId, String version) {
-		return Paths.get(groupId.replace(".", "/")).resolve(artifactId).resolve(version)
-				.resolve(artifactId + "-" + version + ".pom");
+		return Paths.get(dependency.groupId.replace(".", "/")).resolve(dependency.artifactId)
+				.resolve(dependency.version).resolve(dependency.artifactId + "-" + dependency.version + ".pom");
 	}
 
 	public static Path userHome() {
