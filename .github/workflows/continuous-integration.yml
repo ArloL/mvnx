@@ -50,7 +50,7 @@ jobs:
         path: target/artifacts
     - name: Publish to GitHub Packages Apache Maven
       run: |
-        ./mvnw --batch-mode --settings .\.mvn\github-packages-settings.xml deploy
+        ./mvnw --batch-mode --settings ./.mvn/github-packages-settings.xml deploy
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   windows:
