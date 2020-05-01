@@ -14,7 +14,7 @@
 
     <groupId>io.github.arlol</groupId>
     <artifactId>mvnx</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>${revision}</version>
 
     <scm>
         <connection>scm:git:https://github.com/ArloL/mvnx.git</connection>
@@ -26,6 +26,7 @@
     <properties>
         <java.version>11</java.version>
         <sha1>HEAD</sha1>
+        <revision>0.0.1-SNAPSHOT</revision>
     </properties>
 
     <build>
