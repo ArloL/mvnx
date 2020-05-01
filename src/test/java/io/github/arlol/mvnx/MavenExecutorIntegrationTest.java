@@ -26,4 +26,11 @@ public class MavenExecutorIntegrationTest {
 		}).hasCause(new IllegalArgumentException("Expection ;)"));
 	}
 
+	@Test
+	public void testWaitForPorts() throws Exception {
+		Path repository = TestPaths.get("maven-repository");
+		MavenExecutor.main(new String[] { "com.github.ArloL:wait-for-ports:35b1ce08e2", "--localRepository",
+				repository.toString(), "--", "wrongarg" });
+	}
+
 }
