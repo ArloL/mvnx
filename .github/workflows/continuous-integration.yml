@@ -86,6 +86,16 @@ jobs:
     needs: [macos, ubuntu, windows]
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-java@v1
+      with:
+        java-version: '11'
+    - name: Cache Maven packages
+      uses: actions/cache@v1
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
     - name: Publish to GitHub Packages Apache Maven
       run: |
         ./mvnw \
