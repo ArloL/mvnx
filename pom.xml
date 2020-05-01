@@ -23,6 +23,13 @@
         <url>https://github.com/ArloL/mvnx/</url>
     </scm>
 
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>http://opensource.org/licenses/MIT</url>
+        </license>
+    </licenses>
+
     <properties>
         <java.version>11</java.version>
         <sha1>HEAD</sha1>
