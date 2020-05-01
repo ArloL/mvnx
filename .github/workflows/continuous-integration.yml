@@ -21,6 +21,7 @@ jobs:
         ./mvnw \
           --batch-mode \
           -Dsha1="${GITHUB_SHA}" \
+          -Drevision="${GITHUB_SHA}" \
           package
         mkdir target/artifacts
         cp target/mvnx-* target/artifacts
@@ -47,6 +48,7 @@ jobs:
         ./mvnw \
           --batch-mode \
           -Dsha1="${GITHUB_SHA}" \
+          -Drevision="${GITHUB_SHA}" \
           package
         mkdir target/artifacts
         cp target/mvnx-* target/artifacts
@@ -82,7 +84,7 @@ jobs:
       shell: cmd
       run: |
         set
-        call .\mvnw --batch-mode -Dsha1="%GITHUB_SHA%" package
+        call .\mvnw --batch-mode -Dsha1="%GITHUB_SHA%" -Drevision="%GITHUB_SHA%" package
         mkdir target\artifacts
         copy target\mvnx-* target\artifacts
     - uses: actions/upload-artifact@v1
