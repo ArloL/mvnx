@@ -51,6 +51,8 @@ public class MavenExecutor {
 		String version = identifier[2];
 		String mainClass = null;
 		List<String> remotes = List.of("https://repo.maven.apache.org/maven2/", "https://jitpack.io/");
+		Path userHomeM2 = userHomeM2(userHome());
+		Path settingsXml = settingsXml(userHomeM2);
 		for (String argument : Arrays.copyOfRange(args, 1, args.length)) {
 			String[] argumentParts = argument.split("=");
 			switch (argumentParts[0]) {
@@ -60,12 +62,13 @@ public class MavenExecutor {
 			case "--mainClass":
 				mainClass = argumentParts[1];
 				break;
+			case "--settings":
+				settingsXml = Paths.get(argumentParts[1]);
+				break;
 			default:
 				break;
 			}
 		}
-		Path userHomeM2 = userHomeM2(userHome());
-		Path settingsXml = settingsXml(userHomeM2);
 		Path localRepository = localRepository(userHomeM2, settingsXml);
 		Project project = project(localRepository, pomPath(groupId, artifactId, version), Collections.emptyList(),
 				remotes);
