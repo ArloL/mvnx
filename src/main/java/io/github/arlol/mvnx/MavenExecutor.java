@@ -33,7 +33,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-public class ClassLoaderExperiment {
+public class MavenExecutor {
 
 	private static final Pattern PROPERTIES_TOKEN = Pattern.compile("\\$\\{([\\w.-]+)\\}");
 	private static final long TIMEOUT_MS = 10_000;
@@ -50,7 +50,7 @@ public class ClassLoaderExperiment {
 		URL[] jars = getJarUrls(projectDependencies(project, project), localRepository, remotes);
 		System.out.println(System.currentTimeMillis() + ": Running…");
 
-		URLClassLoader classLoader = new URLClassLoader(jars, ClassLoaderExperiment.class.getClassLoader());
+		URLClassLoader classLoader = new URLClassLoader(jars, MavenExecutor.class.getClassLoader());
 		Class<?> classToLoad = Class.forName(mainClass, true, classLoader);
 		classToLoad.getMethod("main", new Class[] { args.getClass() }).invoke(null, new Object[] { args });
 	}

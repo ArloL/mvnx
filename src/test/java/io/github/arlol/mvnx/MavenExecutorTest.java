@@ -11,7 +11,7 @@ import java.util.Map.Entry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-public class ClassLoaderExperimentTest {
+public class MavenExecutorTest {
 
 	private Path localRepository;
 
@@ -22,54 +22,54 @@ public class ClassLoaderExperimentTest {
 
 	@Test
 	public void testUserHome() {
-		Path userHome = ClassLoaderExperiment.userHome();
+		Path userHome = MavenExecutor.userHome();
 		assertThat(userHome).exists();
 	}
 
 	@Test
 	public void testUserHomeM2() {
-		Path userHomeM2 = ClassLoaderExperiment.userHomeM2(Paths.get("/root"));
+		Path userHomeM2 = MavenExecutor.userHomeM2(Paths.get("/root"));
 		assertThat(userHomeM2).isEqualByComparingTo(Paths.get("/root/.m2"));
 	}
 
 	@Test
 	public void testSettingsXml() {
-		Path settingsXml = ClassLoaderExperiment.settingsXml(Paths.get("/root/.m2"));
+		Path settingsXml = MavenExecutor.settingsXml(Paths.get("/root/.m2"));
 		assertThat(settingsXml).isEqualByComparingTo(Paths.get("/root/.m2/settings.xml"));
 	}
 
 	@Test
 	public void testLocalRepositoryNoSettingsXml() throws Exception {
 		Path settingsXml = Paths.get("THIS-FILE-DOES-NOT-EXIST.xml");
-		Path localRepository = ClassLoaderExperiment.localRepository(Paths.get("/root/.m2"), settingsXml);
+		Path localRepository = MavenExecutor.localRepository(Paths.get("/root/.m2"), settingsXml);
 		assertThat(localRepository).isEqualByComparingTo(Paths.get("/root/.m2/repository"));
 	}
 
 	@Test
 	public void testLocalRepositoryEmpty() throws Exception {
 		Path settingsXml = TestPaths.get("maven-settings-local-repository-empty.xml");
-		Path localRepository = ClassLoaderExperiment.localRepository(Paths.get("/root/.m2"), settingsXml);
+		Path localRepository = MavenExecutor.localRepository(Paths.get("/root/.m2"), settingsXml);
 		assertThat(localRepository).isEqualByComparingTo(Paths.get("/root/.m2/repository"));
 	}
 
 	@Test
 	public void testLocalRepositoryNotSet() throws Exception {
 		Path settingsXml = TestPaths.get("maven-settings-local-repository-not-set.xml");
-		Path localRepository = ClassLoaderExperiment.localRepository(Paths.get("/root/.m2"), settingsXml);
+		Path localRepository = MavenExecutor.localRepository(Paths.get("/root/.m2"), settingsXml);
 		assertThat(localRepository).isEqualByComparingTo(Paths.get("/root/.m2/repository"));
 	}
 
 	@Test
 	public void testLocalRepositoryPath() throws Exception {
 		Path settingsXml = TestPaths.get("maven-settings-local-repository-path.xml");
-		Path localRepository = ClassLoaderExperiment.localRepository(Paths.get("/root/.m2"), settingsXml);
+		Path localRepository = MavenExecutor.localRepository(Paths.get("/root/.m2"), settingsXml);
 		assertThat(localRepository).isEqualByComparingTo(Paths.get("/explicitpath"));
 	}
 
 	@Test
 	public void testLocalRepositoryEnvironmentVariable() throws Exception {
 		Path settingsXml = TestPaths.get("maven-settings-local-repository-environment-variable.xml");
-		Path localRepository = ClassLoaderExperiment.localRepository(Paths.get("/root/.m2"), settingsXml);
+		Path localRepository = MavenExecutor.localRepository(Paths.get("/root/.m2"), settingsXml);
 		assertThat(localRepository)
 				.isEqualByComparingTo(Paths.get("/home").resolve(System.getenv("USER")).resolve(".m2/repository"));
 	}
@@ -78,7 +78,7 @@ public class ClassLoaderExperimentTest {
 	public void testLocalRepositorySystemProperty() throws Exception {
 		System.setProperty("averyspecificsystempropertykey", "averyspecificsystempropertyvalue");
 		Path settingsXml = TestPaths.get("maven-settings-local-repository-system-property.xml");
-		Path localRepository = ClassLoaderExperiment.localRepository(Paths.get("/root/.m2"), settingsXml);
+		Path localRepository = MavenExecutor.localRepository(Paths.get("/root/.m2"), settingsXml);
 		assertThat(localRepository).isEqualByComparingTo(Paths.get("averyspecificsystempropertyvalue/.m2/repository"));
 	}
 
@@ -199,7 +199,7 @@ public class ClassLoaderExperimentTest {
 	@Test
 	public void testTemplateEnvironmentVariable() throws Exception {
 		Entry<String, String> firstEnvironmentVariable = System.getenv().entrySet().iterator().next();
-		String template = ClassLoaderExperiment.template("${env." + firstEnvironmentVariable.getKey() + "}",
+		String template = MavenExecutor.template("${env." + firstEnvironmentVariable.getKey() + "}",
 				Collections.emptyMap());
 		assertThat(template).isEqualTo(firstEnvironmentVariable.getValue());
 	}
@@ -207,7 +207,7 @@ public class ClassLoaderExperimentTest {
 	@Test
 	public void testTemplateSystemProperty() throws Exception {
 		System.setProperty("averyspecificsystempropertykey", "averyspecificsystempropertyvalue");
-		String template = ClassLoaderExperiment.template("${averyspecificsystempropertykey}", Collections.emptyMap());
+		String template = MavenExecutor.template("${averyspecificsystempropertykey}", Collections.emptyMap());
 		assertThat(template).isEqualTo("averyspecificsystempropertyvalue");
 	}
 
@@ -227,13 +227,13 @@ public class ClassLoaderExperimentTest {
 	}
 
 	public Project project(String artifact) throws Exception {
-		return ClassLoaderExperiment.project(localRepository, ClassLoaderExperiment.pomPath(d(artifact)),
+		return MavenExecutor.project(localRepository, MavenExecutor.pomPath(d(artifact)),
 				Collections.emptyList(), Collections.singleton("https://repo1.maven.org/maven2/"));
 	}
 
 	public Collection<Dependency> projectDependencies(String artifact) throws Exception {
 		Project project = project(artifact);
-		Collection<Dependency> dependencies = ClassLoaderExperiment.projectDependencies(project, project);
+		Collection<Dependency> dependencies = MavenExecutor.projectDependencies(project, project);
 		assertThat(dependencies).doesNotHaveDuplicates();
 		return dependencies;
 	}
