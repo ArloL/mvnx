@@ -114,17 +114,30 @@ public class MavenExecutor {
 
 			URL url = null;
 			if (Files.exists(absoluteJarPath)) {
-				url = absoluteJarPath.toUri().toURL();
+				url = toURL(absoluteJarPath.toUri());
 			} else {
-				for (String remote : remotes) {
-					URI pomUri = URI.create(remote).resolve(jarPath.toString());
+				if (dependency.project.remote != null) {
+					URI pomUri = URI.create(dependency.project.remote).resolve(jarPath.toString());
 					HttpRequest request = HttpRequest.newBuilder().uri(pomUri).method("HEAD", BodyPublishers.noBody())
 							.timeout(Duration.ofMillis(TIMEOUT_MS)).build();
 					HttpResponse<Void> response = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.ALWAYS)
 							.build().send(request, HttpResponse.BodyHandlers.discarding());
 					if (response.statusCode() == 200) {
 						url = pomUri.toURL();
-						break;
+					}
+				}
+				if (url == null) {
+					for (String remote : remotes) {
+						URI pomUri = URI.create(remote).resolve(jarPath.toString());
+						HttpRequest request = HttpRequest.newBuilder().uri(pomUri)
+								.method("HEAD", BodyPublishers.noBody()).timeout(Duration.ofMillis(TIMEOUT_MS)).build();
+						HttpResponse<Void> response = HttpClient.newBuilder()
+								.followRedirects(HttpClient.Redirect.ALWAYS).build()
+								.send(request, HttpResponse.BodyHandlers.discarding());
+						if (response.statusCode() == 200) {
+							url = pomUri.toURL();
+							break;
+						}
 					}
 				}
 				if (url == null) {
@@ -143,6 +156,7 @@ public class MavenExecutor {
 			dependency.groupId = project.groupId;
 			dependency.artifactId = project.artifactId;
 			dependency.version = project.version;
+			dependency.project = project;
 			dependencies.add(dependency);
 		}
 		if (project.parent != null) {
@@ -280,14 +294,30 @@ public class MavenExecutor {
 		}
 	}
 
-	private static Document xmlDocument(byte[] xml) {
-		try {
-			DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-			Document document = documentBuilder.parse(new ByteArrayInputStream(xml));
-			document.getDocumentElement().normalize();
-			return document;
-		} catch (SAXException | IOException | ParserConfigurationException e) {
-			throw new IllegalStateException(e);
+	private static Document xmlDocument(Path localRepository, Path pom, Project project, Collection<String> remotes) {
+		Path absolutePomPath = localRepository.resolve(pom);
+		if (Files.exists(absolutePomPath)) {
+			return xmlDocument(absolutePomPath);
+		} else {
+			for (String remote : remotes) {
+				URI pomUri = URI.create(remote).resolve(pom.toString());
+				try {
+					HttpRequest request = HttpRequest.newBuilder().uri(pomUri).timeout(Duration.ofMillis(TIMEOUT_MS))
+							.build();
+					HttpResponse<byte[]> response = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL)
+							.build().send(request, HttpResponse.BodyHandlers.ofByteArray());
+					if (response.statusCode() == 200 && response.body().length > 0) {
+						DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+						Document document = documentBuilder.parse(new ByteArrayInputStream(response.body()));
+						document.getDocumentElement().normalize();
+						project.remote = remote;
+						return document;
+					}
+				} catch (SAXException | IOException | ParserConfigurationException | InterruptedException e) {
+					throw new IllegalStateException(e);
+				}
+			}
+			throw new IllegalArgumentException("Download failed " + pom);
 		}
 	}
 
@@ -314,27 +344,7 @@ public class MavenExecutor {
 		projects = new ArrayList<>(projects);
 		projects.add(project);
 
-		Path absolutePomPath = localRepository.resolve(pom);
-
-		Document xmlDocument = null;
-		if (Files.exists(absolutePomPath)) {
-			xmlDocument = xmlDocument(absolutePomPath);
-		} else {
-			for (String remote : remotes) {
-				URI pomUri = URI.create(remote).resolve(pom.toString());
-				HttpRequest request = HttpRequest.newBuilder().uri(pomUri).timeout(Duration.ofMillis(TIMEOUT_MS))
-						.build();
-				HttpResponse<byte[]> response = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.ALWAYS)
-						.build().send(request, HttpResponse.BodyHandlers.ofByteArray());
-				if (response.statusCode() == 200 && response.body().length > 0) {
-					xmlDocument = xmlDocument(response.body());
-					break;
-				}
-			}
-			if (xmlDocument == null) {
-				throw new IllegalArgumentException("Download failed " + pom);
-			}
-		}
+		Document xmlDocument = xmlDocument(localRepository, pom, project, repositories);
 
 		Element projectElement = xmlDocument.getDocumentElement();
 

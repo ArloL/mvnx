@@ -14,6 +14,7 @@ public class Project {
 	DependencyManagement dependencyManagement;
 	List<Dependency> dependencies = new ArrayList<>();
 	Map<String, String> properties = new HashMap<>();
+	String remote;
 
 	@Override
 	public String toString() {
