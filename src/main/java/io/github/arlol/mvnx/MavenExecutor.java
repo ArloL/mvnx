@@ -50,20 +50,24 @@ public class MavenExecutor {
 		String artifactId = identifier[1];
 		String version = identifier[2];
 		String mainClass = null;
+		String[] arguments = new String[0];
 		List<String> remotes = List.of("https://repo.maven.apache.org/maven2/", "https://jitpack.io/");
 		Path userHomeM2 = userHomeM2(userHome());
 		Path settingsXml = settingsXml(userHomeM2);
-		for (String argument : Arrays.copyOfRange(args, 1, args.length)) {
-			String[] argumentParts = argument.split("=");
-			switch (argumentParts[0]) {
+		for (int i = 1; i < args.length; i++) {
+			switch (args[i]) {
 			case "--repositories":
-				remotes = Arrays.asList(argumentParts[1].split(","));
+				remotes = Arrays.asList(args[++i].split(","));
 				break;
 			case "--mainClass":
-				mainClass = argumentParts[1];
+				mainClass = args[++i];
 				break;
 			case "--settings":
-				settingsXml = Paths.get(argumentParts[1]);
+				settingsXml = Paths.get(args[++i]);
+				break;
+			case "--":
+				arguments = Arrays.copyOfRange(args, i + 1, args.length);
+				i = args.length;
 				break;
 			default:
 				break;
@@ -78,7 +82,7 @@ public class MavenExecutor {
 		URL[] jars = getJarUrls(projectDependencies(project, project), localRepository, remotes);
 		URLClassLoader classLoader = new URLClassLoader(jars, MavenExecutor.class.getClassLoader());
 		Class<?> classToLoad = Class.forName(mainClass, true, classLoader);
-		classToLoad.getMethod("main", new Class[] { args.getClass() }).invoke(null, new Object[] { args });
+		classToLoad.getMethod("main", new Class[] { arguments.getClass() }).invoke(null, new Object[] { arguments });
 	}
 
 	public static URL[] getJarUrls(Collection<Dependency> dependencies, Path localRepository,
