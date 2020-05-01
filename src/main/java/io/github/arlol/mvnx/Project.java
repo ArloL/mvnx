@@ -1,8 +1,9 @@
 package io.github.arlol.mvnx;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Properties;
+import java.util.Map;
 
 public class Project {
 
@@ -12,7 +13,7 @@ public class Project {
 	String version;
 	DependencyManagement dependencyManagement;
 	List<Dependency> dependencies = new ArrayList<>();
-	Properties properties = new Properties();
+	Map<String, String> properties = new HashMap<>();
 
 	@Override
 	public String toString() {
