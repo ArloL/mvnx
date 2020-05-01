@@ -89,6 +89,17 @@ public class MavenExecutor {
 		return this;
 	}
 
+	public Path localRepository(Path userHomeM2, Path settingsXml) {
+		if (Files.exists(settingsXml)) {
+			String localRepository = getTextContentFromFirstChildElementByTagName(
+					xmlDocument(settingsXml).getDocumentElement(), "localRepository");
+			if (localRepository != null && !localRepository.isBlank()) {
+				return Paths.get(template(localRepository, Collections.emptyMap()));
+			}
+		}
+		return userHomeM2.resolve("repository");
+	}
+
 	public void parseProject() {
 		project = project(pomPath(groupId, artifactId, version), Collections.emptyList());
 	}
@@ -98,7 +109,7 @@ public class MavenExecutor {
 		projects = new ArrayList<>(projects);
 		projects.add(project);
 
-		Document xmlDocument = xmlDocument(localRepository, pom, project, repositories);
+		Document xmlDocument = xmlDocument(pom);
 
 		Element projectElement = xmlDocument.getDocumentElement();
 
@@ -176,6 +187,42 @@ public class MavenExecutor {
 		}
 
 		return project;
+	}
+
+	public Document xmlDocument(Path path) {
+		Path absolutePath = path;
+		if (!Files.exists(path)) {
+			absolutePath = localRepository.resolve(path);
+		}
+		if (Files.exists(absolutePath)) {
+			try {
+				DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+				Document document = documentBuilder.parse(absolutePath.toFile());
+				document.getDocumentElement().normalize();
+				return document;
+			} catch (SAXException | IOException | ParserConfigurationException e) {
+				throw new IllegalStateException(e);
+			}
+		} else {
+			for (String remote : repositories) {
+				URI pomUri = URI.create(remote).resolve(path.toString());
+				try {
+					HttpRequest request = HttpRequest.newBuilder().uri(pomUri).timeout(Duration.ofMillis(TIMEOUT_MS))
+							.build();
+					HttpResponse<byte[]> response = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL)
+							.build().send(request, HttpResponse.BodyHandlers.ofByteArray());
+					if (response.statusCode() == 200 && response.body().length > 0) {
+						DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+						Document document = documentBuilder.parse(new ByteArrayInputStream(response.body()));
+						document.getDocumentElement().normalize();
+						return document;
+					}
+				} catch (SAXException | IOException | ParserConfigurationException | InterruptedException e) {
+					throw new IllegalStateException(e);
+				}
+			}
+			throw new IllegalArgumentException("Download failed " + path);
+		}
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -331,17 +378,6 @@ public class MavenExecutor {
 		return userHomeM2.resolve("settings.xml");
 	}
 
-	public static Path localRepository(Path userHomeM2, Path settingsXml) {
-		if (Files.exists(settingsXml)) {
-			String localRepository = getTextContentFromFirstChildElementByTagName(
-					xmlDocument(settingsXml).getDocumentElement(), "localRepository");
-			if (localRepository != null && !localRepository.isBlank()) {
-				return Paths.get(template(localRepository, Collections.emptyMap()));
-			}
-		}
-		return userHomeM2.resolve("repository");
-	}
-
 	public static String template(String text, Map<?, ?> properties) {
 		if (text == null) {
 			return text;
@@ -369,44 +405,6 @@ public class MavenExecutor {
 		}
 		result.append(text.substring(last));
 		return result.toString();
-	}
-
-	public static Document xmlDocument(Path xml) {
-		try {
-			DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-			Document document = documentBuilder.parse(xml.toFile());
-			document.getDocumentElement().normalize();
-			return document;
-		} catch (SAXException | IOException | ParserConfigurationException e) {
-			throw new IllegalStateException(e);
-		}
-	}
-
-	private static Document xmlDocument(Path localRepository, Path pom, Project project, Collection<String> remotes) {
-		Path absolutePomPath = localRepository.resolve(pom);
-		if (Files.exists(absolutePomPath)) {
-			return xmlDocument(absolutePomPath);
-		} else {
-			for (String remote : remotes) {
-				URI pomUri = URI.create(remote).resolve(pom.toString());
-				try {
-					HttpRequest request = HttpRequest.newBuilder().uri(pomUri).timeout(Duration.ofMillis(TIMEOUT_MS))
-							.build();
-					HttpResponse<byte[]> response = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL)
-							.build().send(request, HttpResponse.BodyHandlers.ofByteArray());
-					if (response.statusCode() == 200 && response.body().length > 0) {
-						DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-						Document document = documentBuilder.parse(new ByteArrayInputStream(response.body()));
-						document.getDocumentElement().normalize();
-						project.remote = remote;
-						return document;
-					}
-				} catch (SAXException | IOException | ParserConfigurationException | InterruptedException e) {
-					throw new IllegalStateException(e);
-				}
-			}
-			throw new IllegalArgumentException("Download failed " + pom);
-		}
 	}
 
 	private static String getTextContentFromFirstChildElementByTagName(Element element, String tagName) {
