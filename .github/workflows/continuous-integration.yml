@@ -56,17 +56,6 @@ jobs:
       with:
         name: mvnx artifacts from ${{runner.os}} build
         path: target/artifacts
-    - name: Publish to GitHub Packages Apache Maven
-      run: |
-        ./mvnw \
-          --batch-mode \
-          --settings ./.mvn/github-packages-settings.xml \
-          -Dsha1="${GITHUB_SHA}" \
-          -Drevision="${GITHUB_SHA}" \
-          -DaltDeploymentRepository="github::default::https://maven.pkg.github.com/${GITHUB_REPOSITORY}" \
-          deploy
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   windows:
     runs-on: windows-latest
     env:
@@ -93,3 +82,18 @@ jobs:
       with:
         name: mvnx artifacts from ${{runner.os}} build
         path: target/artifacts
+  deploy:
+    needs: [macos, ubuntu, windows]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Publish to GitHub Packages Apache Maven
+      run: |
+        ./mvnw \
+          --batch-mode \
+          --settings ./.mvn/github-packages-settings.xml \
+          -Dsha1="${GITHUB_SHA}" \
+          -Drevision="${GITHUB_SHA}" \
+          -DaltDeploymentRepository="github::default::https://maven.pkg.github.com/${GITHUB_REPOSITORY}" \
+          deploy
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
