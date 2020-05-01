@@ -96,8 +96,8 @@ public class MavenExecutor {
 					URI pomUri = URI.create(remote).resolve(jarPath.toString());
 					HttpRequest request = HttpRequest.newBuilder().uri(pomUri).method("HEAD", BodyPublishers.noBody())
 							.timeout(Duration.ofMillis(TIMEOUT_MS)).build();
-					HttpResponse<Void> response = HttpClient.newBuilder().build().send(request,
-							HttpResponse.BodyHandlers.discarding());
+					HttpResponse<Void> response = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.ALWAYS)
+							.build().send(request, HttpResponse.BodyHandlers.discarding());
 					if (response.statusCode() == 200) {
 						url = pomUri.toURL();
 						break;
@@ -292,8 +292,8 @@ public class MavenExecutor {
 				URI pomUri = URI.create(remote).resolve(pom.toString());
 				HttpRequest request = HttpRequest.newBuilder().uri(pomUri).timeout(Duration.ofMillis(TIMEOUT_MS))
 						.build();
-				HttpResponse<byte[]> response = HttpClient.newBuilder().build().send(request,
-						HttpResponse.BodyHandlers.ofByteArray());
+				HttpResponse<byte[]> response = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.ALWAYS)
+						.build().send(request, HttpResponse.BodyHandlers.ofByteArray());
 				if (response.statusCode() == 200 && response.body().length > 0) {
 					xmlDocument = xmlDocument(response.body());
 					break;
