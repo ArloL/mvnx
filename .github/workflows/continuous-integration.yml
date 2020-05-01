@@ -53,7 +53,7 @@ jobs:
         ./mvnw \
           --batch-mode \
           --settings ./.mvn/github-packages-settings.xml \
-          -DaltDeploymentRepository="github::https://maven.pkg.github.com/${env.GITHUB_REPOSITORY}" \
+          -DaltDeploymentRepository="github::https://maven.pkg.github.com/${GITHUB_REPOSITORY}" \
           deploy
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
