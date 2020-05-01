@@ -68,10 +68,11 @@ public class MavenExecutorTest {
 
 	@Test
 	public void testLocalRepositoryEnvironmentVariable() throws Exception {
+		String getenv = System.getenv("PATH");
+		assertThat(getenv).isNotNull();
 		Path settingsXml = TestPaths.get("maven-settings-local-repository-environment-variable.xml");
 		Path localRepository = MavenExecutor.localRepository(Paths.get("/root/.m2"), settingsXml);
-		assertThat(localRepository)
-				.isEqualByComparingTo(Paths.get("/home").resolve(System.getenv("USER")).resolve(".m2/repository"));
+		assertThat(localRepository).isEqualByComparingTo(Paths.get(getenv));
 	}
 
 	@Test
@@ -227,8 +228,8 @@ public class MavenExecutorTest {
 	}
 
 	public Project project(String artifact) throws Exception {
-		return MavenExecutor.project(localRepository, MavenExecutor.pomPath(d(artifact)),
-				Collections.emptyList(), Collections.singleton("https://repo1.maven.org/maven2/"));
+		return MavenExecutor.project(localRepository, MavenExecutor.pomPath(d(artifact)), Collections.emptyList(),
+				Collections.singleton("https://repo1.maven.org/maven2/"));
 	}
 
 	public Collection<Dependency> projectDependencies(String artifact) throws Exception {
