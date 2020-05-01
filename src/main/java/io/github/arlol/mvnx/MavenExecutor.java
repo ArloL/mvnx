@@ -15,6 +15,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -39,13 +40,38 @@ public class MavenExecutor {
 	private static final long TIMEOUT_MS = 10_000;
 
 	public static void main(String[] args) throws Exception {
+		if (args.length == 0) {
+			System.err.println("Missing artifact identifier");
+			System.err.println("Usage: mvnx groupId:artifactId:version");
+			return;
+		}
+		String[] identifier = args[0].split(":");
+		String groupId = identifier[0];
+		String artifactId = identifier[1];
+		String version = identifier[2];
+		String mainClass = null;
+		List<String> remotes = List.of("https://repo.maven.apache.org/maven2/", "https://jitpack.io/");
+		for (String argument : Arrays.copyOfRange(args, 1, args.length)) {
+			String[] argumentParts = argument.split("=");
+			switch (argumentParts[0]) {
+			case "--repositories":
+				remotes = Arrays.asList(argumentParts[1].split(","));
+				break;
+			case "--mainClass":
+				mainClass = argumentParts[1];
+				break;
+			default:
+				break;
+			}
+		}
 		Path userHomeM2 = userHomeM2(userHome());
-		Path localRepository = localRepository(userHomeM2, settingsXml(userHomeM2));
-		List<String> remotes = List.of("https://repo1.maven.org/maven2/", "https://jitpack.io/");
-		Project project = project(localRepository, pomPath("com.github.ArloL", "newlinechecker", "133576b455"),
-				Collections.emptyList(), remotes);
-		String mainClass = project.properties.getOrDefault("mainClass",
-				"io.github.arlol.newlinechecker.NewlinecheckerApplication");
+		Path settingsXml = settingsXml(userHomeM2);
+		Path localRepository = localRepository(userHomeM2, settingsXml);
+		Project project = project(localRepository, pomPath(groupId, artifactId, version), Collections.emptyList(),
+				remotes);
+		if (mainClass == null) {
+			mainClass = project.properties.get("mainClass");
+		}
 		URL[] jars = getJarUrls(projectDependencies(project, project), localRepository, remotes);
 		URLClassLoader classLoader = new URLClassLoader(jars, MavenExecutor.class.getClassLoader());
 		Class<?> classToLoad = Class.forName(mainClass, true, classLoader);
