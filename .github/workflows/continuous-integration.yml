@@ -18,7 +18,10 @@ jobs:
     - name: Build with Maven
       run: |
         env
-        ./mvnw --batch-mode package
+        ./mvnw \
+          --batch-mode \
+          -Dsha1="${GITHUB_SHA}" \
+          package
         mkdir target/artifacts
         cp target/mvnx-* target/artifacts
     - uses: actions/upload-artifact@v1
@@ -41,7 +44,10 @@ jobs:
     - name: Build with Maven
       run: |
         env
-        ./mvnw --batch-mode package
+        ./mvnw \
+          --batch-mode \
+          -Dsha1="${GITHUB_SHA}" \
+          package
         mkdir target/artifacts
         cp target/mvnx-* target/artifacts
     - uses: actions/upload-artifact@v1
@@ -76,7 +82,7 @@ jobs:
       shell: cmd
       run: |
         set
-        call .\mvnw --batch-mode package
+        call .\mvnw --batch-mode -Dsha1="%GITHUB_SHA%" package
         mkdir target\artifacts
         copy target\mvnx-* target\artifacts
     - uses: actions/upload-artifact@v1
