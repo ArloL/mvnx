@@ -68,11 +68,11 @@ public class MavenExecutorTest {
 
 	@Test
 	public void testLocalRepositoryEnvironmentVariable() throws Exception {
-		String getenv = System.getenv("PATH");
+		String getenv = System.getenv("USER");
 		assertThat(getenv).isNotNull();
 		Path settingsXml = TestPaths.get("maven-settings-local-repository-environment-variable.xml");
 		Path localRepository = MavenExecutor.localRepository(Paths.get("/root/.m2"), settingsXml);
-		assertThat(localRepository).isEqualByComparingTo(Paths.get(getenv));
+		assertThat(localRepository).isEqualByComparingTo(Paths.get("/home").resolve(getenv).resolve(".m2/repository"));
 	}
 
 	@Test
