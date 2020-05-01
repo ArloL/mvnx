@@ -61,6 +61,8 @@ jobs:
         ./mvnw \
           --batch-mode \
           --settings ./.mvn/github-packages-settings.xml \
+          -Dsha1="${GITHUB_SHA}" \
+          -Drevision="${GITHUB_SHA}" \
           -DaltDeploymentRepository="github::default::https://maven.pkg.github.com/${GITHUB_REPOSITORY}" \
           deploy
       env:
