@@ -99,22 +99,22 @@ public class MavenExecutor {
 	}
 
 	public void parseProject() {
-		project = project(pomPath(dependency), Collections.emptyList());
+		project = project(dependency, Collections.emptyList());
 	}
 
-	public Project project(Path pom, List<Project> projects) {
+	public Project project(Dependency dep, List<Project> projects) {
 		Project project = new Project();
 		projects = new ArrayList<>(projects);
 		projects.add(project);
 
-		Document xmlDocument = xmlDocument(pom);
+		Document xmlDocument = xmlDocument(pomPath(dep));
 
 		Element projectElement = xmlDocument.getDocumentElement();
 
 		List<Element> parentElements = getChildElementsByTagName(projectElement, "parent");
 		if (parentElements.size() == 1) {
 			Dependency dependency = dependencyFromElement(parentElements.get(0));
-			dependency.project = project(pomPath(dependency), projects);
+			dependency.project = project(dependency, projects);
 			project.parent = dependency;
 		}
 
@@ -172,7 +172,7 @@ public class MavenExecutor {
 					String version = dependency.version;
 					manageDependency(projects, dependency);
 					if (!dependency.version.equals(version)) {
-						dependency.project = project(pomPath(dependency), projects);
+						dependency.project = project(dependency, projects);
 					}
 				}
 				searchProject = Optional.ofNullable(searchProject.parent).map(p -> p.project).orElse(null);
@@ -181,7 +181,7 @@ public class MavenExecutor {
 
 		for (Dependency dependency : project.dependencies) {
 			manageDependency(projects, dependency);
-			dependency.project = project(pomPath(dependency), projects);
+			dependency.project = project(dependency, projects);
 		}
 
 		return project;
