@@ -327,11 +327,10 @@ public class MavenExecutor {
 		if (version != null) {
 			dependency.version = version;
 		}
-		if (scope != null) {
-			dependency.scope = scope;
-		} else {
-			dependency.scope = "compile";
+		if (scope == null) {
+			scope = "compile";
 		}
+		dependency.scope = scope;
 	}
 
 	public static Path jarPath(Dependency dependency) {
