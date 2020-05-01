@@ -43,13 +43,9 @@ public class MavenExecutor {
 		Path userHomeM2 = userHomeM2(userHome());
 		Path localRepository = localRepository(userHomeM2, settingsXml(userHomeM2));
 		List<String> remotes = List.of("https://repo1.maven.org/maven2/", "https://jitpack.io/");
-		System.out.println(System.currentTimeMillis() + ": Getting project…");
 		Project project = project(localRepository, pomPath("com.github.ArloL", "newlinechecker", "133576b455"),
 				Collections.emptyList(), remotes);
-		System.out.println(System.currentTimeMillis() + ": Getting jars…");
 		URL[] jars = getJarUrls(projectDependencies(project, project), localRepository, remotes);
-		System.out.println(System.currentTimeMillis() + ": Running…");
-
 		URLClassLoader classLoader = new URLClassLoader(jars, MavenExecutor.class.getClassLoader());
 		Class<?> classToLoad = Class.forName(mainClass, true, classLoader);
 		classToLoad.getMethod("main", new Class[] { args.getClass() }).invoke(null, new Object[] { args });
@@ -262,7 +258,6 @@ public class MavenExecutor {
 		if (Files.exists(absolutePomPath)) {
 			xmlDocument = xmlDocument(absolutePomPath);
 		} else {
-			System.out.println(System.currentTimeMillis() + ": downloading " + pom);
 			for (String remote : remotes) {
 				URI pomUri = URI.create(remote).resolve(pom.toString());
 				HttpRequest request = HttpRequest.newBuilder().uri(pomUri).timeout(Duration.ofMillis(TIMEOUT_MS))
