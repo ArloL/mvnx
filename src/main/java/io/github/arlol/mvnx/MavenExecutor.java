@@ -39,50 +39,60 @@ public class MavenExecutor {
 	private static final Pattern PROPERTIES_TOKEN = Pattern.compile("\\$\\{([\\w.-]+)\\}");
 	private static final long TIMEOUT_MS = 10_000;
 
-	public static void main(String[] args) throws Exception {
-		if (args.length == 0) {
-			System.err.println("Missing artifact identifier");
-			System.err.println("Usage: mvnx groupId:artifactId:version");
-			return;
+	String groupId;
+	String artifactId;
+	String version;
+	String mainClass;
+	String[] passthroughArguments = new String[0];
+	List<String> repositories = List.of("https://repo.maven.apache.org/maven2/", "https://jitpack.io/");
+	Path userHomeM2 = userHomeM2(userHome());
+	Path settingsXml = settingsXml(userHomeM2);
+
+	public MavenExecutor parseArguments(String[] arguments) {
+		if (arguments.length == 0) {
+			throw new IllegalArgumentException("Missing artifact identifier");
 		}
-		String[] identifier = args[0].split(":");
-		String groupId = identifier[0];
-		String artifactId = identifier[1];
-		String version = identifier[2];
-		String mainClass = null;
-		String[] arguments = new String[0];
-		List<String> remotes = List.of("https://repo.maven.apache.org/maven2/", "https://jitpack.io/");
-		Path userHomeM2 = userHomeM2(userHome());
-		Path settingsXml = settingsXml(userHomeM2);
-		for (int i = 1; i < args.length; i++) {
-			switch (args[i]) {
+		String[] identifier = arguments[0].split(":");
+		groupId = identifier[0];
+		artifactId = identifier[1];
+		version = identifier[2];
+		for (int i = 1; i < arguments.length; i++) {
+			switch (arguments[i]) {
 			case "--repositories":
-				remotes = Arrays.asList(args[++i].split(","));
+				repositories = Arrays.asList(arguments[++i].split(","));
 				break;
 			case "--mainClass":
-				mainClass = args[++i];
+				mainClass = arguments[++i];
 				break;
 			case "--settings":
-				settingsXml = Paths.get(args[++i]);
+				settingsXml = Paths.get(arguments[++i]);
 				break;
 			case "--":
-				arguments = Arrays.copyOfRange(args, i + 1, args.length);
-				i = args.length;
+				passthroughArguments = Arrays.copyOfRange(arguments, i + 1, arguments.length);
+				i = arguments.length;
 				break;
 			default:
 				break;
 			}
 		}
-		Path localRepository = localRepository(userHomeM2, settingsXml);
-		Project project = project(localRepository, pomPath(groupId, artifactId, version), Collections.emptyList(),
-				remotes);
-		if (mainClass == null) {
-			mainClass = project.properties.get("mainClass");
+		return this;
+	}
+
+	public static void main(String[] args) throws Exception {
+		MavenExecutor mavenExecutor = new MavenExecutor();
+		mavenExecutor.parseArguments(args);
+		Path localRepository = localRepository(mavenExecutor.userHomeM2, mavenExecutor.settingsXml);
+		Project project = project(localRepository,
+				pomPath(mavenExecutor.groupId, mavenExecutor.artifactId, mavenExecutor.version),
+				Collections.emptyList(), mavenExecutor.repositories);
+		if (mavenExecutor.mainClass == null) {
+			mavenExecutor.mainClass = project.properties.get("mainClass");
 		}
-		URL[] jars = getJarUrls(projectDependencies(project, project), localRepository, remotes);
+		URL[] jars = getJarUrls(projectDependencies(project, project), localRepository, mavenExecutor.repositories);
 		URLClassLoader classLoader = new URLClassLoader(jars, MavenExecutor.class.getClassLoader());
-		Class<?> classToLoad = Class.forName(mainClass, true, classLoader);
-		classToLoad.getMethod("main", new Class[] { arguments.getClass() }).invoke(null, new Object[] { arguments });
+		Class<?> classToLoad = Class.forName(mavenExecutor.mainClass, true, classLoader);
+		classToLoad.getMethod("main", new Class[] { mavenExecutor.passthroughArguments.getClass() }).invoke(null,
+				new Object[] { mavenExecutor.passthroughArguments });
 	}
 
 	public static URL[] getJarUrls(Collection<Dependency> dependencies, Path localRepository,
