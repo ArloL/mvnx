@@ -53,7 +53,7 @@ jobs:
     - name: Build with Maven
       shell: cmd
       run: |
-        call .\mvnw --batch-mode --settings .\.mvn\github-actions-windows-maven-settings.xml package
+        call .\mvnw --batch-mode package
         mkdir target\artifacts
         copy target\mvnx-* target\artifacts
     - uses: actions/upload-artifact@v1
