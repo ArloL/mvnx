@@ -11,6 +11,7 @@ public class MavenExecutorIntegrationTest {
 	@Test
 	public void testPrint() throws Exception {
 		Path repository = TestPaths.get("maven-repository");
+		System.out.println(repository.toString());
 		// Overwrite repositories to ensure offline usage
 		MavenExecutor.main(new String[] { "io.github.ArloL:print:0.0.1", "--repositories", "http://localhost:62085",
 				"--localRepository", repository.toString() });
