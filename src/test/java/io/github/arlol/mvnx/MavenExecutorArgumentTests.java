@@ -7,6 +7,8 @@ import java.nio.file.Paths;
 
 import org.junit.jupiter.api.Test;
 
+import io.github.arlol.mvnx.MavenExecutor.Artifact;
+
 public class MavenExecutorArgumentTests {
 
 	@Test

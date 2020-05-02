@@ -12,6 +12,8 @@ import java.util.Map.Entry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.github.arlol.mvnx.MavenExecutor.Artifact;
+
 public class MavenExecutorTest {
 
 	private Path localRepository;
