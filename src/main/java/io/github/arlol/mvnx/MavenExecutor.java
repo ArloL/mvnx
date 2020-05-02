@@ -37,6 +37,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 public class MavenExecutor {
@@ -146,49 +147,61 @@ public class MavenExecutor {
 		}
 		return result.toArray(URL[]::new);
 	}
-	
+
 	public static class Maven {
 
 		Path userHomeM2 = userHomeM2(Paths.get(System.getProperty("user.home")));
 		Path settingsXml = settingsXml(userHomeM2);
 		Path localRepository;
+		boolean inMemory = true;
 		Collection<String> repositories = List.of("https://repo.maven.apache.org/maven2/", "https://jitpack.io/");
 
-		public Document xmlDocument(Path path) {
-			Path absolutePath = path;
-			if (!Files.exists(path)) {
-				absolutePath = localRepository.resolve(path);
+		public Document xmlDocument(InputSource inputSource) {
+			try {
+				DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+				Document document = documentBuilder.parse(inputSource);
+				document.getDocumentElement().normalize();
+				return document;
+			} catch (SAXException | ParserConfigurationException | IOException e) {
+				throw new IllegalStateException(e);
 			}
+		}
+
+		public Document xmlDocument(Path path) {
+			return xmlDocument(new InputSource(path.toUri().toASCIIString()));
+		}
+
+		public Document pom(Artifact artifact) {
+			Path path = path(artifact, "pom");
+			Path absolutePath = localRepository.resolve(path);
 			if (Files.exists(absolutePath)) {
+				return xmlDocument(absolutePath);
+			}
+			for (String remote : repositories) {
+				URI uri = URI.create(remote).resolve(path.toString());
 				try {
-					DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-					Document document = documentBuilder.parse(absolutePath.toFile());
-					document.getDocumentElement().normalize();
-					return document;
-				} catch (SAXException | IOException | ParserConfigurationException e) {
+					HttpRequest request = HttpRequest.newBuilder().uri(uri).timeout(Duration.ofMillis(TIMEOUT_MS))
+							.build();
+					HttpClient httpClient = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
+					if (inMemory) {
+						HttpResponse<byte[]> response = httpClient.send(request,
+								HttpResponse.BodyHandlers.ofByteArray());
+						if (response.statusCode() == 200) {
+							return xmlDocument(new InputSource(new ByteArrayInputStream(response.body())));
+						}
+					} else {
+						Files.createDirectories(absolutePath.getParent());
+						HttpResponse<Path> response = httpClient.send(request,
+								HttpResponse.BodyHandlers.ofFile(absolutePath));
+						if (response.statusCode() == 200) {
+							return xmlDocument(response.body());
+						}
+					}
+				} catch (IOException | InterruptedException e) {
 					throw new IllegalStateException(e);
 				}
-			} else {
-				for (String remote : repositories) {
-					URI pomUri = URI.create(remote).resolve(path.toString());
-					try {
-						HttpRequest request = HttpRequest.newBuilder().uri(pomUri)
-								.timeout(Duration.ofMillis(TIMEOUT_MS)).build();
-						HttpResponse<byte[]> response = HttpClient.newBuilder()
-								.followRedirects(HttpClient.Redirect.NORMAL).build()
-								.send(request, HttpResponse.BodyHandlers.ofByteArray());
-						if (response.statusCode() == 200 && response.body().length > 0) {
-							DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-							Document document = documentBuilder.parse(new ByteArrayInputStream(response.body()));
-							document.getDocumentElement().normalize();
-							return document;
-						}
-					} catch (SAXException | IOException | ParserConfigurationException | InterruptedException e) {
-						throw new IllegalStateException(e);
-					}
-				}
-				throw new IllegalArgumentException("Download failed " + path);
 			}
+			throw new IllegalArgumentException("Download failed " + path);
 		}
 
 		public Path localRepository(Path userHomeM2, Path settingsXml) {
@@ -206,7 +219,7 @@ public class MavenExecutor {
 			artifacts = new ArrayList<>(artifacts);
 			artifacts.add(artifact);
 
-			Document xmlDocument = xmlDocument(path(artifact, "pom"));
+			Document xmlDocument = pom(artifact);
 
 			Element projectElement = xmlDocument.getDocumentElement();
 
@@ -460,28 +473,29 @@ public class MavenExecutor {
 		}
 
 		public void manage(List<Artifact> dependents) {
-			Artifact override = new Artifact();
+			String version = null;
+			String scope = null;
 			List<Artifact> artifacts = dependents.stream().flatMap(artifact -> artifact.hierarchy().stream()).flatMap(
 					artifact -> Stream.concat(artifact.dependencies.stream(), artifact.dependencyManagement.stream()))
 					.filter(this::equalsArtifact).collect(Collectors.toList());
 			for (Artifact artifact : artifacts) {
-				if (override.version == null) {
-					override.version = artifact.version;
+				if (version == null) {
+					version = artifact.version;
 				}
-				if (override.scope == null) {
-					override.scope = artifact.scope;
+				if (scope == null) {
+					scope = artifact.scope;
 				}
-				if (override.version != null && override.scope != null) {
+				if (version != null && scope != null) {
 					break;
 				}
 			}
-			if (override.version != null) {
-				this.version = override.version;
+			if (version != null) {
+				this.version = version;
 			}
-			if (override.scope == null) {
-				override.scope = "compile";
+			if (scope == null) {
+				scope = "compile";
 			}
-			this.scope = override.scope;
+			this.scope = scope;
 		}
 
 		public boolean equalsArtifact(Artifact other) {
