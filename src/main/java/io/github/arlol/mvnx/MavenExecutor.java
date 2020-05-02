@@ -117,7 +117,7 @@ public class MavenExecutor {
 				url = absoluteJarPath.toUri().toURL();
 			} else {
 				if (dependency.remote != null) {
-					URI pomUri = URI.create(dependency.remote).resolve(jarPath.toString());
+					URI pomUri = URI.create(dependency.remote).resolve(jarPath.toString().replace('\\', '/'));
 					HttpRequest request = HttpRequest.newBuilder().uri(pomUri).method("HEAD", BodyPublishers.noBody())
 							.timeout(Duration.ofMillis(TIMEOUT_MS)).build();
 					HttpResponse<Void> response = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.ALWAYS)
@@ -128,7 +128,7 @@ public class MavenExecutor {
 				}
 				if (url == null) {
 					for (String remote : maven.repositories) {
-						URI pomUri = URI.create(remote).resolve(jarPath.toString());
+						URI pomUri = URI.create(remote).resolve(jarPath.toString().replace('\\', '/'));
 						HttpRequest request = HttpRequest.newBuilder().uri(pomUri)
 								.method("HEAD", BodyPublishers.noBody()).timeout(Duration.ofMillis(TIMEOUT_MS)).build();
 						HttpResponse<Void> response = HttpClient.newBuilder()
