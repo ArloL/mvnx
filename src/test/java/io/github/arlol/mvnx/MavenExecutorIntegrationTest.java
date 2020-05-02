@@ -13,7 +13,7 @@ public class MavenExecutorIntegrationTest {
 		Path repository = TestPaths.get("maven-repository");
 		System.out.println(repository.toString());
 		// Overwrite repositories to ensure offline usage
-		MavenExecutor.main(new String[] { "io.github.ArloL:print:0.0.1", "--repositories", "http://localhost:62085",
+		MavenExecutor.main(new String[] { "io.github.arlol:print:0.0.1", "--repositories", "http://localhost:62085",
 				"--localRepository", repository.toString() });
 	}
 
@@ -22,7 +22,7 @@ public class MavenExecutorIntegrationTest {
 		Path repository = TestPaths.get("maven-repository");
 		// Overwrite repositories to ensure offline usage
 		assertThatThrownBy(() -> {
-			MavenExecutor.main(new String[] { "io.github.ArloL:exception:0.0.1", "--repositories",
+			MavenExecutor.main(new String[] { "io.github.arlol:exception:0.0.1", "--repositories",
 					"http://localhost:62085", "--localRepository", repository.toString() });
 		}).hasCause(new IllegalArgumentException("Expection ;)"));
 	}
@@ -30,7 +30,7 @@ public class MavenExecutorIntegrationTest {
 	@Test
 	public void testWaitForPorts() throws Exception {
 		Path repository = TestPaths.get("maven-repository");
-		MavenExecutor.main(new String[] { "com.github.ArloL:wait-for-ports:35b1ce08e2", "--localRepository",
+		MavenExecutor.main(new String[] { "com.github.arlol:wait-for-ports:35b1ce08e2", "--localRepository",
 				repository.toString(), "--", "wrongarg" });
 	}
 

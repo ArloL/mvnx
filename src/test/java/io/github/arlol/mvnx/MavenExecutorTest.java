@@ -194,7 +194,7 @@ public class MavenExecutorTest {
 
 	@Test
 	public void testPrint() throws Exception {
-		Collection<Artifact> dependencies = artifactDependencies("io.github.ArloL:print:0.0.1");
+		Collection<Artifact> dependencies = artifactDependencies("io.github.arlol:print:0.0.1");
 		assertThat(dependencies).containsExactly(d("io.github.arlol:print:0.0.1"));
 	}
 
