@@ -41,6 +41,24 @@ import org.xml.sax.SAXException;
 
 public class MavenExecutor {
 
+	public static void main(String[] args) throws Exception {
+		MavenExecutor mavenExecutor = new MavenExecutor();
+		mavenExecutor.parseArguments(args);
+		mavenExecutor.resolve();
+		if (mavenExecutor.mainClass == null) {
+			mavenExecutor.mainClass = mavenExecutor.artifact.properties.get("mainClass");
+		}
+		URL[] jars = getJarUrls(
+				mavenExecutor.artifact.dependencies(
+						dependency -> !(dependency.packaging.equals("pom") || "test".equals(dependency.scope)
+								|| "provided".equals(dependency.scope) || dependency.optional)),
+				mavenExecutor.localRepository, mavenExecutor.repositories);
+		URLClassLoader classLoader = new URLClassLoader(jars, MavenExecutor.class.getClassLoader());
+		Class<?> classToLoad = Class.forName(mavenExecutor.mainClass, true, classLoader);
+		classToLoad.getMethod("main", new Class[] { mavenExecutor.passthroughArguments.getClass() }).invoke(null,
+				new Object[] { mavenExecutor.passthroughArguments });
+	}
+
 	private static final Pattern PROPERTIES_TOKEN = Pattern.compile("\\$\\{([\\w.-]+)\\}");
 	private static final long TIMEOUT_MS = 10_000;
 
@@ -228,24 +246,6 @@ public class MavenExecutor {
 			}
 			throw new IllegalArgumentException("Download failed " + path);
 		}
-	}
-
-	public static void main(String[] args) throws Exception {
-		MavenExecutor mavenExecutor = new MavenExecutor();
-		mavenExecutor.parseArguments(args);
-		mavenExecutor.resolve();
-		if (mavenExecutor.mainClass == null) {
-			mavenExecutor.mainClass = mavenExecutor.artifact.properties.get("mainClass");
-		}
-		URL[] jars = getJarUrls(
-				mavenExecutor.artifact.dependencies(
-						dependency -> !(dependency.packaging.equals("pom") || "test".equals(dependency.scope)
-								|| "provided".equals(dependency.scope) || dependency.optional)),
-				mavenExecutor.localRepository, mavenExecutor.repositories);
-		URLClassLoader classLoader = new URLClassLoader(jars, MavenExecutor.class.getClassLoader());
-		Class<?> classToLoad = Class.forName(mavenExecutor.mainClass, true, classLoader);
-		classToLoad.getMethod("main", new Class[] { mavenExecutor.passthroughArguments.getClass() }).invoke(null,
-				new Object[] { mavenExecutor.passthroughArguments });
 	}
 
 	public static URL[] getJarUrls(Collection<Artifact> dependencies, Path localRepository, Collection<String> remotes)
