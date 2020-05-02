@@ -164,7 +164,7 @@ public class MavenExecutor {
 			List<Element> dependencyElements = getChildElementsByTagName(dependenciesElements.get(0), "dependency");
 			for (Element dependencyElement : dependencyElements) {
 				Artifact dependency = artifactFromElement(dependencyElement);
-				dependency.version = template(dependency.version, artifact.properties);
+				dependency.version = template(dependency.version, artifact.allProperties(artifacts));
 				artifact.dependencies.add(dependency);
 			}
 		}
