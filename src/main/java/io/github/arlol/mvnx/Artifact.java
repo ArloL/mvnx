@@ -1,46 +1,53 @@
 package io.github.arlol.mvnx;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Predicate;
 
-public class Dependency {
+public class Artifact {
 
+	Artifact parent;
 	String groupId;
 	String artifactId;
 	String version;
-	String type;
+	String packaging;
 	String classifier;
 	String scope;
 	boolean optional = false;
-	Project project;
+	List<Artifact> dependencyManagement = new ArrayList<>();
+	List<Artifact> dependencies = new ArrayList<>();
+	Map<String, String> properties = new HashMap<>();
+	String remote;
 
-	public Collection<Dependency> dependencies(Predicate<Dependency> filter) {
-		Collection<Dependency> dependencies = new LinkedHashSet<>();
+	public Collection<Artifact> dependencies(Predicate<Artifact> filter) {
+		Collection<Artifact> dependencies = new LinkedHashSet<>();
 		if (filter.test(this)) {
 			dependencies.add(this);
 		}
-		if (project.parent != null) {
-			dependencies.addAll(project.parent.dependencies(filter));
+		if (parent != null) {
+			dependencies.addAll(parent.dependencies(filter));
 		}
-		for (Dependency dependency : project.dependencies) {
+		for (Artifact dependency : this.dependencies) {
 			if (filter.test(dependency)) {
 				dependencies.addAll(dependency.dependencies(filter));
 			}
 		}
 		return dependencies;
-
 	}
 
-	public boolean equalsArtifact(Dependency other) {
+	public boolean equalsArtifact(Artifact other) {
 		return Objects.equals(artifactId, other.artifactId) && Objects.equals(classifier, other.classifier)
-				&& Objects.equals(groupId, other.groupId) && Objects.equals(type, other.type);
+				&& Objects.equals(groupId, other.groupId) && Objects.equals(packaging, other.packaging);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(artifactId, classifier, groupId, type, version);
+		return Objects.hash(artifactId, classifier, groupId, packaging, version);
 	}
 
 	@Override
@@ -54,16 +61,16 @@ public class Dependency {
 		if (getClass() != obj.getClass()) {
 			return false;
 		}
-		Dependency other = (Dependency) obj;
+		Artifact other = (Artifact) obj;
 		return Objects.equals(artifactId, other.artifactId) && Objects.equals(classifier, other.classifier)
-				&& Objects.equals(groupId, other.groupId) && Objects.equals(type, other.type)
+				&& Objects.equals(groupId, other.groupId) && Objects.equals(packaging, other.packaging)
 				&& Objects.equals(version, other.version);
 	}
 
 	@Override
 	public String toString() {
 		return "Dependency [groupId=" + groupId + ", artifactId=" + artifactId + ", version=" + version + ", packaging="
-				+ type + ", classifier=" + classifier + ", scope=" + scope + "]";
+				+ packaging + ", classifier=" + classifier + ", scope=" + scope + "]";
 	}
 
 }

@@ -2,8 +2,6 @@ package io.github.arlol.mvnx;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -41,11 +39,11 @@ public class MavenExecutor {
 	private static final Pattern PROPERTIES_TOKEN = Pattern.compile("\\$\\{([\\w.-]+)\\}");
 	private static final long TIMEOUT_MS = 10_000;
 
-	Dependency dependency = new Dependency();
+	Artifact artifact = new Artifact();
 	String mainClass;
 	String[] passthroughArguments = new String[0];
 	Collection<String> repositories = List.of("https://repo.maven.apache.org/maven2/", "https://jitpack.io/");
-	Path userHomeM2 = userHomeM2(userHome());
+	Path userHomeM2 = userHomeM2(Paths.get(System.getProperty("user.home")));
 	Path settingsXml = settingsXml(userHomeM2);
 	Path localRepository;
 
@@ -54,9 +52,9 @@ public class MavenExecutor {
 			throw new IllegalArgumentException("Missing artifact identifier");
 		}
 		String[] identifier = arguments[0].split(":");
-		dependency.groupId = identifier[0];
-		dependency.artifactId = identifier[1];
-		dependency.version = identifier[2];
+		artifact.groupId = identifier[0];
+		artifact.artifactId = identifier[1];
+		artifact.version = identifier[2];
 		for (int i = 1; i < arguments.length; i++) {
 			switch (arguments[i]) {
 			case "--repositories":
@@ -96,44 +94,42 @@ public class MavenExecutor {
 		return userHomeM2.resolve("repository");
 	}
 
-	public void parseProject() {
-		dependency.project = project(dependency, Collections.emptyList());
+	public void resolve() {
+		resolve(artifact, Collections.emptyList());
 	}
 
-	public Project project(Dependency dep, List<Project> projects) {
-		Project project = new Project();
-		projects = new ArrayList<>(projects);
-		projects.add(project);
+	public void resolve(Artifact artifact, List<Artifact> artifacts) {
+		artifacts = new ArrayList<>(artifacts);
+		artifacts.add(artifact);
 
-		Document xmlDocument = xmlDocument(pomPath(dep));
+		Document xmlDocument = xmlDocument(pomPath(artifact));
 
 		Element projectElement = xmlDocument.getDocumentElement();
 
 		List<Element> parentElements = getChildElementsByTagName(projectElement, "parent");
 		if (parentElements.size() == 1) {
-			Dependency dependency = dependencyFromElement(parentElements.get(0));
-			dependency.type = "pom";
-			dependency.project = project(dependency, projects);
-			project.parent = dependency;
+			Artifact parent = artifactFromElement(parentElements.get(0));
+			parent.packaging = "pom";
+			resolve(parent, artifacts);
+			artifact.parent = parent;
 		}
 
-		project.artifactId = getTextContentFromFirstChildElementByTagName(projectElement, "artifactId");
-		project.groupId = getTextContentFromFirstChildElementByTagName(projectElement, "groupId");
-		project.version = getTextContentFromFirstChildElementByTagName(projectElement, "version");
-		project.packaging = getTextContentFromFirstChildElementByTagName(projectElement, "packaging");
+		artifact.artifactId = getTextContentFromFirstChildElementByTagName(projectElement, "artifactId");
+		artifact.groupId = getTextContentFromFirstChildElementByTagName(projectElement, "groupId");
+		artifact.version = getTextContentFromFirstChildElementByTagName(projectElement, "version");
+		artifact.packaging = getTextContentFromFirstChildElementByTagName(projectElement, "packaging");
 
-		if (project.groupId == null) {
-			project.groupId = project.parent.groupId;
+		if (artifact.groupId == null) {
+			artifact.groupId = artifact.parent.groupId;
 		}
-		if (project.version == null) {
-			project.version = project.parent.version;
+		if (artifact.version == null) {
+			artifact.version = artifact.parent.version;
 		}
-		if (project.packaging == null) {
-			project.packaging = "jar";
+		if (artifact.packaging == null) {
+			artifact.packaging = "jar";
 		}
-		dep.type = project.packaging;
 
-		project.properties.put("project.version", project.version);
+		artifact.properties.put("project.version", artifact.version);
 
 		List<Element> propertiesElements = getChildElementsByTagName(projectElement, "properties");
 		if (!propertiesElements.isEmpty()) {
@@ -142,7 +138,7 @@ public class MavenExecutor {
 				Node propertyNode = propertyNodes.item(i);
 				if (propertyNode.getNodeType() == Node.ELEMENT_NODE) {
 					Element propertyElement = (Element) propertyNode;
-					project.properties.put(propertyElement.getTagName(), propertyElement.getTextContent());
+					artifact.properties.put(propertyElement.getTagName(), propertyElement.getTextContent());
 				}
 			}
 		}
@@ -152,9 +148,9 @@ public class MavenExecutor {
 			NodeList dependencyElements = dependencyManagementElements.get(0).getElementsByTagName("dependency");
 			for (int i = 0; i < dependencyElements.getLength(); i++) {
 				Element dependencyElement = (Element) dependencyElements.item(i);
-				Dependency dependency = dependencyFromElement(dependencyElement);
-				dependency.version = template(dependency.version, project.properties);
-				project.dependencyManagement.add(dependency);
+				Artifact dependency = artifactFromElement(dependencyElement);
+				dependency.version = template(dependency.version, artifact.properties);
+				artifact.dependencyManagement.add(dependency);
 			}
 		}
 
@@ -162,33 +158,30 @@ public class MavenExecutor {
 		if (!dependenciesElements.isEmpty()) {
 			List<Element> dependencyElements = getChildElementsByTagName(dependenciesElements.get(0), "dependency");
 			for (Element dependencyElement : dependencyElements) {
-				Dependency dependency = dependencyFromElement(dependencyElement);
-				dependency.type = "jar";
-				dependency.version = template(dependency.version, project.properties);
-				project.dependencies.add(dependency);
+				Artifact dependency = artifactFromElement(dependencyElement);
+				dependency.version = template(dependency.version, artifact.properties);
+				artifact.dependencies.add(dependency);
 			}
 		}
 
-		if (project.parent != null) {
-			Project searchProject = project.parent.project;
-			while (searchProject != null) {
-				for (Dependency dependency : searchProject.dependencies) {
+		if (artifact.parent != null) {
+			Artifact searchArtifact = artifact.parent;
+			while (searchArtifact != null) {
+				for (Artifact dependency : searchArtifact.dependencies) {
 					String version = dependency.version;
-					manageDependency(projects, dependency);
+					manageDependency(artifacts, dependency);
 					if (!dependency.version.equals(version)) {
-						dependency.project = project(dependency, projects);
+						resolve(dependency, artifacts);
 					}
 				}
-				searchProject = Optional.ofNullable(searchProject.parent).map(p -> p.project).orElse(null);
+				searchArtifact = searchArtifact.parent;
 			}
 		}
 
-		for (Dependency dependency : project.dependencies) {
-			manageDependency(projects, dependency);
-			dependency.project = project(dependency, projects);
+		for (Artifact dependency : artifact.dependencies) {
+			manageDependency(artifacts, dependency);
+			resolve(dependency, artifacts);
 		}
-
-		return project;
 	}
 
 	public Document xmlDocument(Path path) {
@@ -230,13 +223,13 @@ public class MavenExecutor {
 	public static void main(String[] args) throws Exception {
 		MavenExecutor mavenExecutor = new MavenExecutor();
 		mavenExecutor.parseArguments(args);
-		mavenExecutor.parseProject();
+		mavenExecutor.resolve();
 		if (mavenExecutor.mainClass == null) {
-			mavenExecutor.mainClass = mavenExecutor.dependency.project.properties.get("mainClass");
+			mavenExecutor.mainClass = mavenExecutor.artifact.properties.get("mainClass");
 		}
 		URL[] jars = getJarUrls(
-				mavenExecutor.dependency
-						.dependencies(dependency -> !(dependency.type.equals("pom") || "test".equals(dependency.scope)
+				mavenExecutor.artifact.dependencies(
+						dependency -> !(dependency.packaging.equals("pom") || "test".equals(dependency.scope)
 								|| "provided".equals(dependency.scope) || dependency.optional)),
 				mavenExecutor.localRepository, mavenExecutor.repositories);
 		URLClassLoader classLoader = new URLClassLoader(jars, MavenExecutor.class.getClassLoader());
@@ -245,19 +238,19 @@ public class MavenExecutor {
 				new Object[] { mavenExecutor.passthroughArguments });
 	}
 
-	public static URL[] getJarUrls(Collection<Dependency> dependencies, Path localRepository,
-			Collection<String> remotes) throws Exception {
+	public static URL[] getJarUrls(Collection<Artifact> dependencies, Path localRepository, Collection<String> remotes)
+			throws Exception {
 		List<URL> result = new ArrayList<>();
-		for (Dependency dependency : dependencies) {
+		for (Artifact dependency : dependencies) {
 			Path jarPath = jarPath(dependency);
 			Path absoluteJarPath = localRepository.resolve(jarPath);
 
 			URL url = null;
 			if (Files.exists(absoluteJarPath)) {
-				url = toURL(absoluteJarPath.toUri());
+				url = absoluteJarPath.toUri().toURL();
 			} else {
-				if (dependency.project.remote != null) {
-					URI pomUri = URI.create(dependency.project.remote).resolve(jarPath.toString());
+				if (dependency.remote != null) {
+					URI pomUri = URI.create(dependency.remote).resolve(jarPath.toString());
 					HttpRequest request = HttpRequest.newBuilder().uri(pomUri).method("HEAD", BodyPublishers.noBody())
 							.timeout(Duration.ofMillis(TIMEOUT_MS)).build();
 					HttpResponse<Void> response = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.ALWAYS)
@@ -289,16 +282,16 @@ public class MavenExecutor {
 		return result.toArray(URL[]::new);
 	}
 
-	private static void manageDependency(List<Project> projects, Dependency dependency) {
+	private static void manageDependency(List<Artifact> artifactHierarchy, Artifact dependency) {
 		String version = null;
 		String scope = null;
-		for (Project project : projects) {
-			Project searchProject = project;
-			while (searchProject != null) {
-				Optional<Dependency> findFirst = searchProject.dependencies.stream().filter(dependency::equalsArtifact)
+		for (Artifact artifact : artifactHierarchy) {
+			Artifact searchArtifact = artifact;
+			while (searchArtifact != null) {
+				Optional<Artifact> findFirst = searchArtifact.dependencies.stream().filter(dependency::equalsArtifact)
 						.findFirst();
 				if (findFirst.isPresent()) {
-					Dependency override = findFirst.get();
+					Artifact override = findFirst.get();
 					if (version == null) {
 						version = override.version;
 					}
@@ -306,12 +299,11 @@ public class MavenExecutor {
 						scope = override.scope;
 					}
 				}
-				if (searchProject.dependencyManagement != null) {
-					findFirst = searchProject.dependencyManagement.stream().filter(
-							d -> d.groupId.equals(dependency.groupId) && d.artifactId.equals(dependency.artifactId))
+				if (searchArtifact.dependencyManagement != null) {
+					findFirst = searchArtifact.dependencyManagement.stream().filter(dependency::equalsArtifact)
 							.findFirst();
 					if (findFirst.isPresent()) {
-						Dependency override = findFirst.get();
+						Artifact override = findFirst.get();
 						if (version == null) {
 							version = override.version;
 						}
@@ -320,7 +312,7 @@ public class MavenExecutor {
 						}
 					}
 				}
-				searchProject = Optional.ofNullable(searchProject.parent).map(p -> p.project).orElse(null);
+				searchArtifact = searchArtifact.parent;
 			}
 		}
 		if (version != null) {
@@ -332,18 +324,14 @@ public class MavenExecutor {
 		dependency.scope = scope;
 	}
 
-	public static Path jarPath(Dependency dependency) {
+	public static Path jarPath(Artifact dependency) {
 		return Paths.get(dependency.groupId.replace(".", "/")).resolve(dependency.artifactId)
 				.resolve(dependency.version).resolve(dependency.artifactId + "-" + dependency.version + ".jar");
 	}
 
-	public static Path pomPath(Dependency dependency) {
+	public static Path pomPath(Artifact dependency) {
 		return Paths.get(dependency.groupId.replace(".", "/")).resolve(dependency.artifactId)
 				.resolve(dependency.version).resolve(dependency.artifactId + "-" + dependency.version + ".pom");
-	}
-
-	public static Path userHome() {
-		return Paths.get(System.getProperty("user.home"));
 	}
 
 	public static Path userHomeM2(Path userHome) {
@@ -400,45 +388,39 @@ public class MavenExecutor {
 		return result;
 	}
 
-	private static Dependency dependencyFromElement(Element element) {
-		Dependency depependency = new Dependency();
-		depependency.groupId = getTextContentFromFirstChildElementByTagName(element, "groupId");
-		depependency.artifactId = getTextContentFromFirstChildElementByTagName(element, "artifactId");
+	private static Artifact artifactFromElement(Element element) {
+		Artifact artifact = new Artifact();
+		artifact.groupId = getTextContentFromFirstChildElementByTagName(element, "groupId");
+		artifact.artifactId = getTextContentFromFirstChildElementByTagName(element, "artifactId");
 
 		String version = getTextContentFromFirstChildElementByTagName(element, "version");
 		if (version != null) {
-			depependency.version = version;
+			artifact.version = version;
 		}
 
 		String scope = getTextContentFromFirstChildElementByTagName(element, "scope");
 		if (scope != null) {
-			depependency.scope = scope;
+			artifact.scope = scope;
 		}
 
 		String classifier = getTextContentFromFirstChildElementByTagName(element, "classifier");
 		if (classifier != null) {
-			depependency.classifier = classifier;
+			artifact.classifier = classifier;
 		}
 
 		String type = getTextContentFromFirstChildElementByTagName(element, "type");
 		if (type != null) {
-			depependency.type = type;
+			artifact.packaging = type;
+		} else {
+			artifact.packaging = "jar";
 		}
 
 		String optional = getTextContentFromFirstChildElementByTagName(element, "optional");
 		if ("true".equals(optional)) {
-			depependency.optional = true;
+			artifact.optional = true;
 		}
 
-		return depependency;
-	}
-
-	public static URL toURL(URI uri) {
-		try {
-			return uri.toURL();
-		} catch (MalformedURLException e) {
-			throw new UncheckedIOException(e);
-		}
+		return artifact;
 	}
 
 }

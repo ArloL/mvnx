@@ -21,12 +21,6 @@ public class MavenExecutorTest {
 	}
 
 	@Test
-	public void testUserHome() {
-		Path userHome = MavenExecutor.userHome();
-		assertThat(userHome).exists();
-	}
-
-	@Test
 	public void testUserHomeM2() {
 		Path userHomeM2 = MavenExecutor.userHomeM2(Paths.get("/root"));
 		assertThat(userHomeM2).isEqualByComparingTo(Paths.get("/root/.m2"));
@@ -89,50 +83,50 @@ public class MavenExecutorTest {
 
 	@Test
 	public void testPomWithNoDependenciesAndDependencyManagement() throws Exception {
-		Project project = project("org.slf4j:slf4j-parent:1.7.30");
-		assertThat(project.dependencies).hasSize(1);
-		assertThat(project.dependencyManagement).hasSize(4);
+		Artifact artifact = artifact("org.slf4j:slf4j-parent:1.7.30");
+		assertThat(artifact.dependencies).hasSize(1);
+		assertThat(artifact.dependencyManagement).hasSize(4);
 	}
 
 	@Test
 	public void testDependencyWithNoDependencies() throws Exception {
-		Collection<Dependency> dependencies = projectDependencies("org.slf4j:slf4j-api:1.7.30");
+		Collection<Artifact> dependencies = artifactDependencies("org.slf4j:slf4j-api:1.7.30");
 		assertThat(dependencies).containsExactly(d("org.slf4j:slf4j-api:1.7.30"));
 	}
 
 	@Test
 	public void testDependencyWithOneDependencyManagedByParent() throws Exception {
-		Collection<Dependency> dependencies = projectDependencies("org.slf4j:slf4j-nop:1.7.30");
+		Collection<Artifact> dependencies = artifactDependencies("org.slf4j:slf4j-nop:1.7.30");
 		assertThat(dependencies).containsExactly(d("org.slf4j:slf4j-nop:1.7.30"), d("org.slf4j:slf4j-api:1.7.30"));
 	}
 
 	@Test
 	public void testOrgHamcrestHamcrestParent11() throws Exception {
-		Collection<Dependency> dependencies = projectDependencies("org.hamcrest:hamcrest-parent:1.1");
+		Collection<Artifact> dependencies = artifactDependencies("org.hamcrest:hamcrest-parent:1.1");
 		assertThat(dependencies).isEmpty();
 	}
 
 	@Test
 	public void testOrgHamcrestHamcrestCore11() throws Exception {
-		Collection<Dependency> dependencies = projectDependencies("org.hamcrest:hamcrest-core:1.1");
+		Collection<Artifact> dependencies = artifactDependencies("org.hamcrest:hamcrest-core:1.1");
 		assertThat(dependencies).containsExactly(d("org.hamcrest:hamcrest-core:1.1"));
 	}
 
 	@Test
 	public void testJunit410() throws Exception {
-		Collection<Dependency> dependencies = projectDependencies("junit:junit:4.10");
+		Collection<Artifact> dependencies = artifactDependencies("junit:junit:4.10");
 		assertThat(dependencies).containsExactly(d("junit:junit:4.10"), d("org.hamcrest:hamcrest-core:1.1", "compile"));
 	}
 
 	@Test
 	public void testJunit412() throws Exception {
-		Collection<Dependency> dependencies = projectDependencies("junit:junit:4.12");
+		Collection<Artifact> dependencies = artifactDependencies("junit:junit:4.12");
 		assertThat(dependencies).containsExactly(d("junit:junit:4.12"), d("org.hamcrest:hamcrest-core:1.3", "compile"));
 	}
 
 	@Test
 	public void testOrgEclipseJgit561() throws Exception {
-		Collection<Dependency> dependencies = projectDependencies(
+		Collection<Artifact> dependencies = artifactDependencies(
 				"org.eclipse.jgit:org.eclipse.jgit:5.6.1.202002131546-r");
 		assertThat(dependencies).containsExactly(d("org.eclipse.jgit:org.eclipse.jgit:5.6.1.202002131546-r"),
 				d("com.jcraft:jsch:0.1.55"), d("com.jcraft:jzlib:1.1.1"),
@@ -143,41 +137,41 @@ public class MavenExecutorTest {
 
 	@Test
 	public void testComJcraftJsch0155() throws Exception {
-		Collection<Dependency> dependencies = projectDependencies("com.jcraft:jsch:0.1.55");
+		Collection<Artifact> dependencies = artifactDependencies("com.jcraft:jsch:0.1.55");
 		assertThat(dependencies).containsExactly(d("com.jcraft:jsch:0.1.55"));
 	}
 
 	@Test
 	public void testOrgSlf4jNop1730() throws Exception {
-		Project project = project("org.slf4j:slf4j-nop:1.7.30");
-		assertThat(project).isNotNull();
-		assertThat(project.dependencies).isNotEmpty();
-		assertThat(project.dependencies).containsExactly(d("org.slf4j:slf4j-api:1.7.30"));
-		assertThat(project.parent.project.dependencies).containsExactly(d("junit:junit:4.12", "test"));
+		Artifact artifact = artifact("org.slf4j:slf4j-nop:1.7.30");
+		assertThat(artifact).isNotNull();
+		assertThat(artifact.dependencies).isNotEmpty();
+		assertThat(artifact.dependencies).containsExactly(d("org.slf4j:slf4j-api:1.7.30"));
+		assertThat(artifact.parent.dependencies).containsExactly(d("junit:junit:4.12", "test"));
 	}
 
 	@Test
 	public void testUsesSlf4jApi() throws Exception {
-		Project project = project("io.github.arlol:uses-slf4j-nop:0.0.1");
-		assertThat(project).isNotNull();
-		assertThat(project.dependencies).isNotEmpty();
-		assertThat(project.dependencies).containsExactly(d("org.slf4j:slf4j-nop:1.7.30"),
+		Artifact artifact = artifact("io.github.arlol:uses-slf4j-nop:0.0.1");
+		assertThat(artifact).isNotNull();
+		assertThat(artifact.dependencies).isNotEmpty();
+		assertThat(artifact.dependencies).containsExactly(d("org.slf4j:slf4j-nop:1.7.30"),
 				d("org.slf4j:slf4j-api:1.7.23"));
-		assertThat(project.dependencies.get(0).project.dependencies).containsExactly(d("org.slf4j:slf4j-api:1.7.23"));
+		assertThat(artifact.dependencies.get(0).dependencies).containsExactly(d("org.slf4j:slf4j-api:1.7.23"));
 	}
 
 	@Test
 	public void testManagesSlf4jApi() throws Exception {
-		Project project = project("io.github.arlol:manages-slf4j-api:0.0.1");
-		assertThat(project).isNotNull();
-		assertThat(project.dependencies).isNotEmpty();
-		assertThat(project.dependencies).containsExactly(d("io.github.arlol:uses-slf4j-nop:0.0.1"),
+		Artifact artifact = artifact("io.github.arlol:manages-slf4j-api:0.0.1");
+		assertThat(artifact).isNotNull();
+		assertThat(artifact.dependencies).isNotEmpty();
+		assertThat(artifact.dependencies).containsExactly(d("io.github.arlol:uses-slf4j-nop:0.0.1"),
 				d("org.slf4j:slf4j-api:1.7.25"));
-		assertThat(project.dependencies.get(0).project.dependencies).containsExactly(d("org.slf4j:slf4j-nop:1.7.30"),
+		assertThat(artifact.dependencies.get(0).dependencies).containsExactly(d("org.slf4j:slf4j-nop:1.7.30"),
 				d("org.slf4j:slf4j-api:1.7.25"));
-		assertThat(project.dependencies.get(0).project.dependencies.get(0).project.dependencies)
+		assertThat(artifact.dependencies.get(0).dependencies.get(0).dependencies)
 				.containsExactly(d("org.slf4j:slf4j-api:1.7.25"));
-		Collection<Dependency> dependencies = projectDependencies("io.github.arlol:manages-slf4j-api:0.0.1");
+		Collection<Artifact> dependencies = artifactDependencies("io.github.arlol:manages-slf4j-api:0.0.1");
 
 		assertThat(dependencies).containsExactly(d("io.github.arlol:manages-slf4j-api:0.0.1"),
 				d("io.github.arlol:uses-slf4j-nop:0.0.1"), d("org.slf4j:slf4j-nop:1.7.30"),
@@ -186,7 +180,7 @@ public class MavenExecutorTest {
 
 	@Test
 	public void testDependencyWithJgitDependencies() throws Exception {
-		Collection<Dependency> dependencies = projectDependencies("io.github.arlol:newlinechecker:0.0.1-SNAPSHOT");
+		Collection<Artifact> dependencies = artifactDependencies("io.github.arlol:newlinechecker:0.0.1-SNAPSHOT");
 		assertThat(dependencies).containsExactly(d("io.github.arlol:newlinechecker:0.0.1-SNAPSHOT"),
 				d("org.eclipse.jgit:org.eclipse.jgit:5.6.1.202002131546-r"), d("com.jcraft:jsch:0.1.55"),
 				d("com.jcraft:jzlib:1.1.1"), d("com.googlecode.javaewah:JavaEWAH:1.1.6:bundle"),
@@ -197,7 +191,7 @@ public class MavenExecutorTest {
 
 	@Test
 	public void testDependencyWithTransientDependencies() throws Exception {
-		Collection<Dependency> dependencies = projectDependencies("io.github.arlol:newlinechecker2:0.0.1-SNAPSHOT");
+		Collection<Artifact> dependencies = artifactDependencies("io.github.arlol:newlinechecker2:0.0.1-SNAPSHOT");
 		assertThat(dependencies).containsExactly(d("io.github.arlol:newlinechecker2:0.0.1-SNAPSHOT"),
 				d("org.slf4j:slf4j-nop:1.7.30"), d("org.slf4j:slf4j-api:1.7.30"));
 	}
@@ -218,18 +212,18 @@ public class MavenExecutorTest {
 	}
 
 	/**
-	 * groupId:artifactId:version[:type][:classifier]
+	 * groupId:artifactId:version[:packaging][:classifier]
 	 */
-	public Dependency d(String artifact) {
-		Dependency dependency = new Dependency();
+	public Artifact d(String artifact) {
+		Artifact dependency = new Artifact();
 		String[] parts = artifact.split(":");
 		dependency.groupId = parts[0];
 		dependency.artifactId = parts[1];
 		dependency.version = parts[2];
 		if (parts.length > 3) {
-			dependency.type = parts[3];
+			dependency.packaging = parts[3];
 		} else {
-			dependency.type = "jar";
+			dependency.packaging = "jar";
 		}
 		if (parts.length > 4) {
 			dependency.classifier = parts[4];
@@ -238,36 +232,38 @@ public class MavenExecutorTest {
 		return dependency;
 	}
 
-	public Dependency d(String artifact, String scope) {
-		Dependency dependency = d(artifact);
+	public Artifact d(String artifact, String scope) {
+		Artifact dependency = d(artifact);
 		dependency.scope = scope;
 		return dependency;
 	}
 
-	public Project project(String artifact) throws Exception {
+	public Artifact artifact(String artifact) throws Exception {
 		MavenExecutor mavenExecutor = new MavenExecutor();
 		mavenExecutor.localRepository = localRepository;
 		mavenExecutor.repositories = Collections.singleton("https://repo1.maven.org/maven2/");
-		return mavenExecutor.project(d(artifact), Collections.emptyList());
+		mavenExecutor.artifact = d(artifact);
+		mavenExecutor.resolve();
+		return mavenExecutor.artifact;
 	}
 
-	public Dependency dependency(String artifact) {
-		Dependency dependency = d(artifact);
+	public Artifact dependency(String artifact) {
+		Artifact dependency = d(artifact);
 		MavenExecutor mavenExecutor = new MavenExecutor();
 		mavenExecutor.localRepository = localRepository;
 		mavenExecutor.repositories = Collections.singleton("https://repo1.maven.org/maven2/");
-		dependency.project = mavenExecutor.project(dependency, Collections.emptyList());
+		mavenExecutor.resolve(dependency, Collections.emptyList());
 		return dependency;
 	}
 
-	public Collection<Dependency> projectDependencies(String artifact) throws Exception {
+	public Collection<Artifact> artifactDependencies(String artifact) throws Exception {
 		MavenExecutor mavenExecutor = new MavenExecutor();
-		mavenExecutor.dependency = dependency(artifact);
+		mavenExecutor.artifact = dependency(artifact);
 		mavenExecutor.localRepository = localRepository;
 		mavenExecutor.repositories = Collections.singleton("https://repo1.maven.org/maven2/");
-		mavenExecutor.parseProject();
-		Collection<Dependency> dependencies = mavenExecutor.dependency
-				.dependencies(dependency -> !(dependency.type.equals("pom") || "test".equals(dependency.scope)
+		mavenExecutor.resolve();
+		Collection<Artifact> dependencies = mavenExecutor.artifact
+				.dependencies(dependency -> !(dependency.packaging.equals("pom") || "test".equals(dependency.scope)
 						|| "provided".equals(dependency.scope) || dependency.optional));
 		assertThat(dependencies).doesNotHaveDuplicates();
 		return dependencies;

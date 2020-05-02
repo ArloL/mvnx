@@ -19,10 +19,10 @@ public class MavenExecutorArgumentTests {
 	@Test
 	public void testIdentifier() {
 		MavenExecutor executor = parseArguments(new String[] { "com.github.ArloL:newlinechecker:133576b455" });
-		Dependency dependency = executor.dependency;
-		assertThat(dependency.groupId).isEqualTo("com.github.ArloL");
-		assertThat(dependency.artifactId).isEqualTo("newlinechecker");
-		assertThat(dependency.version).isEqualTo("133576b455");
+		Artifact artifact = executor.artifact;
+		assertThat(artifact.groupId).isEqualTo("com.github.ArloL");
+		assertThat(artifact.artifactId).isEqualTo("newlinechecker");
+		assertThat(artifact.version).isEqualTo("133576b455");
 	}
 
 	@Test
