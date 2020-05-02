@@ -183,7 +183,7 @@ public class MavenExecutor {
 				return xmlDocument(absolutePath);
 			}
 			for (String remote : repositories) {
-				URI uri = URI.create(remote).resolve(path.toString());
+				URI uri = URI.create(remote).resolve(path.toString().replace('\\', '/'));
 				try {
 					HttpRequest request = HttpRequest.newBuilder().uri(uri).timeout(Duration.ofMillis(TIMEOUT_MS))
 							.build();
