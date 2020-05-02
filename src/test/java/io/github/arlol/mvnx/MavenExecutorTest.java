@@ -9,20 +9,12 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.github.arlol.mvnx.MavenExecutor.Artifact;
 import io.github.arlol.mvnx.MavenExecutor.Maven;
 
 public class MavenExecutorTest {
-
-	private Path localRepository;
-
-	@BeforeEach
-	public void setup() throws Exception {
-		localRepository = TestPaths.get("maven-repository");
-	}
 
 	@Test
 	public void testUserHomeM2() {
@@ -257,8 +249,8 @@ public class MavenExecutorTest {
 
 	public Artifact artifact(String artifactIdentifier) throws Exception {
 		Maven maven = new MavenExecutor.Maven();
-		maven.localRepository = localRepository;
-		maven.repositories = Collections.singleton("https://repo1.maven.org/maven2/");
+		maven.localRepository = TestPaths.get("maven-repository");
+		maven.repositories = Collections.singleton("http://localhost:62085");
 		Artifact artifact = d(artifactIdentifier);
 		maven.resolve(artifact, Collections.emptyList());
 		return artifact;
