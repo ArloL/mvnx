@@ -2,6 +2,7 @@ package io.github.arlol.mvnx;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -168,7 +169,11 @@ public class MavenExecutor {
 		}
 
 		public Document xmlDocument(Path path) {
-			return xmlDocument(new InputSource(path.toUri().toASCIIString()));
+			try (InputStream inputStream = Files.newInputStream(path)) {
+				return xmlDocument(new InputSource(inputStream));
+			} catch (IOException e) {
+				throw new IllegalStateException(e);
+			}
 		}
 
 		public Document pom(Artifact artifact) {
