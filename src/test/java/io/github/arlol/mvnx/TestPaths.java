@@ -8,6 +8,7 @@ import org.springframework.core.io.ClassPathResource;
 public class TestPaths {
 
 	public static Path get(String path) throws IOException {
+		// return Paths.get("./src/test/resources").resolve(path);
 		return new ClassPathResource(path).getFile().toPath();
 	}
 
