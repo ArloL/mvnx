@@ -174,7 +174,7 @@ public class MavenExecutor {
 			while (searchArtifact != null) {
 				for (Artifact dependency : searchArtifact.dependencies) {
 					String version = dependency.version;
-					manageDependency(artifacts, dependency);
+					dependency.manage(artifacts);
 					if (!dependency.version.equals(version)) {
 						resolve(dependency, artifacts);
 					}
@@ -184,7 +184,7 @@ public class MavenExecutor {
 		}
 
 		for (Artifact dependency : artifact.dependencies) {
-			manageDependency(artifacts, dependency);
+			dependency.manage(artifacts);
 			resolve(dependency, artifacts);
 		}
 	}
@@ -285,48 +285,6 @@ public class MavenExecutor {
 			result.add(url);
 		}
 		return result.toArray(URL[]::new);
-	}
-
-	private static void manageDependency(List<Artifact> artifactHierarchy, Artifact dependency) {
-		String version = null;
-		String scope = null;
-		for (Artifact artifact : artifactHierarchy) {
-			Artifact searchArtifact = artifact;
-			while (searchArtifact != null) {
-				Optional<Artifact> findFirst = searchArtifact.dependencies.stream().filter(dependency::equalsArtifact)
-						.findFirst();
-				if (findFirst.isPresent()) {
-					Artifact override = findFirst.get();
-					if (version == null) {
-						version = override.version;
-					}
-					if (scope == null) {
-						scope = override.scope;
-					}
-				}
-				if (searchArtifact.dependencyManagement != null) {
-					findFirst = searchArtifact.dependencyManagement.stream().filter(dependency::equalsArtifact)
-							.findFirst();
-					if (findFirst.isPresent()) {
-						Artifact override = findFirst.get();
-						if (version == null) {
-							version = override.version;
-						}
-						if (scope == null) {
-							scope = override.scope;
-						}
-					}
-				}
-				searchArtifact = searchArtifact.parent;
-			}
-		}
-		if (version != null) {
-			dependency.version = version;
-		}
-		if (scope == null) {
-			scope = "compile";
-		}
-		dependency.scope = scope;
 	}
 
 	public static Path jarPath(Artifact dependency) {
