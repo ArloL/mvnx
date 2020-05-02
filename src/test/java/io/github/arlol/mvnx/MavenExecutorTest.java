@@ -193,6 +193,12 @@ public class MavenExecutorTest {
 	}
 
 	@Test
+	public void testPrint() throws Exception {
+		Collection<Artifact> dependencies = artifactDependencies("io.github.ArloL:print:0.0.1");
+		assertThat(dependencies).containsExactly(d("io.github.arlol:print:0.0.1"));
+	}
+
+	@Test
 	public void testTemplateEnvironmentVariable() throws Exception {
 		Entry<String, String> firstEnvironmentVariable = System.getenv().entrySet().iterator().next();
 		String template = MavenExecutor.Maven.template("${env." + firstEnvironmentVariable.getKey() + "}",
