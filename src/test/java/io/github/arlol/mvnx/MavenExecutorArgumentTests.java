@@ -36,6 +36,14 @@ public class MavenExecutorArgumentTests {
 	}
 
 	@Test
+	public void testLocalRepository() {
+		String localRepository = "/some/path";
+		MavenExecutor executor = parseArguments(
+				new String[] { "com.github.ArloL:newlinechecker:133576b455", "--localRepository", localRepository });
+		assertThat(executor.maven.localRepository).isEqualTo(Paths.get(localRepository));
+	}
+
+	@Test
 	public void testRepositories() {
 		MavenExecutor executor = parseArguments(
 				new String[] { "com.github.ArloL:newlinechecker:133576b455", "--repositories", "https://jitpack.io/" });
