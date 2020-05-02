@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -209,6 +210,19 @@ public class MavenExecutorTest {
 		System.setProperty("averyspecificsystempropertykey", "averyspecificsystempropertyvalue");
 		String template = MavenExecutor.template("${averyspecificsystempropertykey}", Collections.emptyMap());
 		assertThat(template).isEqualTo("averyspecificsystempropertyvalue");
+	}
+
+	@Test
+	public void testPropertyReferencingOtherProperty() throws Exception {
+		Map<String, String> properties = Map.of("key1", "${key2}", "key2", "value");
+		String template = MavenExecutor.template("${key1}", properties);
+		assertThat(template).isEqualTo("value");
+	}
+
+	@Test
+	public void testUnresolvableProperty() throws Exception {
+		String template = MavenExecutor.template("${key1}", Collections.emptyMap());
+		assertThat(template).isEqualTo("${key1}");
 	}
 
 	/**
