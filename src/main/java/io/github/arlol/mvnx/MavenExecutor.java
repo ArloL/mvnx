@@ -309,29 +309,41 @@ public class MavenExecutor {
 		if (text == null) {
 			return text;
 		}
+
 		Map<Object, Object> map = new HashMap<>(properties);
 		System.getenv().forEach(map::putIfAbsent);
 		System.getProperties().forEach(map::putIfAbsent);
-		final Matcher mat = PROPERTIES_TOKEN.matcher(text);
-		StringBuilder result = new StringBuilder();
-		int last = 0;
-		while (mat.find()) {
-			result.append(text.substring(last, mat.start()));
-			String key = mat.group(1);
-			String lookup = key;
-			if (lookup.startsWith("env.")) {
-				lookup = lookup.substring("env.".length());
+
+		String input;
+		String output = text;
+
+		do {
+			input = output;
+
+			final Matcher mat = PROPERTIES_TOKEN.matcher(input);
+			StringBuilder builder = new StringBuilder();
+			int last = 0;
+			while (mat.find()) {
+				builder.append(input.substring(last, mat.start()));
+				String key = mat.group(1);
+				String lookup = key;
+				if (lookup.startsWith("env.")) {
+					lookup = lookup.substring("env.".length());
+				}
+				Object value = map.get(lookup);
+				if (value != null) {
+					builder.append(value);
+				} else {
+					builder.append("${").append(key).append("}");
+				}
+				last = mat.end();
 			}
-			Object value = map.get(lookup);
-			if (value != null) {
-				result.append(value);
-			} else {
-				result.append("${").append(key).append("}");
-			}
-			last = mat.end();
-		}
-		result.append(text.substring(last));
-		return result.toString();
+			builder.append(input.substring(last));
+			output = builder.toString();
+
+		} while (!output.equals(input));
+
+		return output;
 	}
 
 	private static String getTextContentFromFirstChildElementByTagName(Element element, String tagName) {
