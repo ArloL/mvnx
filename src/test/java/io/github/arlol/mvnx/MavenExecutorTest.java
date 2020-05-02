@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.github.arlol.mvnx.MavenExecutor.Artifact;
+import io.github.arlol.mvnx.MavenExecutor.Maven;
 
 public class MavenExecutorTest {
 
@@ -25,13 +26,13 @@ public class MavenExecutorTest {
 
 	@Test
 	public void testUserHomeM2() {
-		Path userHomeM2 = MavenExecutor.userHomeM2(Paths.get("/root"));
+		Path userHomeM2 = MavenExecutor.Maven.userHomeM2(Paths.get("/root"));
 		assertThat(userHomeM2).isEqualByComparingTo(Paths.get("/root/.m2"));
 	}
 
 	@Test
 	public void testSettingsXml() {
-		Path settingsXml = MavenExecutor.settingsXml(Paths.get("/root/.m2"));
+		Path settingsXml = MavenExecutor.Maven.settingsXml(Paths.get("/root/.m2"));
 		assertThat(settingsXml).isEqualByComparingTo(Paths.get("/root/.m2/settings.xml"));
 	}
 
@@ -81,7 +82,7 @@ public class MavenExecutorTest {
 	}
 
 	private Path localRepository(Path settingsXml) {
-		return new MavenExecutor().localRepository(Paths.get("/root/.m2"), settingsXml);
+		return new MavenExecutor.Maven().localRepository(Paths.get("/root/.m2"), settingsXml);
 	}
 
 	@Test
@@ -202,7 +203,7 @@ public class MavenExecutorTest {
 	@Test
 	public void testTemplateEnvironmentVariable() throws Exception {
 		Entry<String, String> firstEnvironmentVariable = System.getenv().entrySet().iterator().next();
-		String template = MavenExecutor.template("${env." + firstEnvironmentVariable.getKey() + "}",
+		String template = MavenExecutor.Maven.template("${env." + firstEnvironmentVariable.getKey() + "}",
 				Collections.emptyMap());
 		assertThat(template).isEqualTo(firstEnvironmentVariable.getValue());
 	}
@@ -210,20 +211,20 @@ public class MavenExecutorTest {
 	@Test
 	public void testTemplateSystemProperty() throws Exception {
 		System.setProperty("averyspecificsystempropertykey", "averyspecificsystempropertyvalue");
-		String template = MavenExecutor.template("${averyspecificsystempropertykey}", Collections.emptyMap());
+		String template = MavenExecutor.Maven.template("${averyspecificsystempropertykey}", Collections.emptyMap());
 		assertThat(template).isEqualTo("averyspecificsystempropertyvalue");
 	}
 
 	@Test
 	public void testPropertyReferencingOtherProperty() throws Exception {
 		Map<String, String> properties = Map.of("key1", "${key2}", "key2", "value");
-		String template = MavenExecutor.template("${key1}", properties);
+		String template = MavenExecutor.Maven.template("${key1}", properties);
 		assertThat(template).isEqualTo("value");
 	}
 
 	@Test
 	public void testUnresolvableProperty() throws Exception {
-		String template = MavenExecutor.template("${key1}", Collections.emptyMap());
+		String template = MavenExecutor.Maven.template("${key1}", Collections.emptyMap());
 		assertThat(template).isEqualTo("${key1}");
 	}
 
@@ -254,33 +255,19 @@ public class MavenExecutorTest {
 		return dependency;
 	}
 
-	public Artifact artifact(String artifact) throws Exception {
-		MavenExecutor mavenExecutor = new MavenExecutor();
-		mavenExecutor.localRepository = localRepository;
-		mavenExecutor.repositories = Collections.singleton("https://repo1.maven.org/maven2/");
-		mavenExecutor.artifact = d(artifact);
-		mavenExecutor.resolve();
-		return mavenExecutor.artifact;
+	public Artifact artifact(String artifactIdentifier) throws Exception {
+		Maven maven = new MavenExecutor.Maven();
+		maven.localRepository = localRepository;
+		maven.repositories = Collections.singleton("https://repo1.maven.org/maven2/");
+		Artifact artifact = d(artifactIdentifier);
+		maven.resolve(artifact, Collections.emptyList());
+		return artifact;
 	}
 
-	public Artifact dependency(String artifact) {
-		Artifact dependency = d(artifact);
-		MavenExecutor mavenExecutor = new MavenExecutor();
-		mavenExecutor.localRepository = localRepository;
-		mavenExecutor.repositories = Collections.singleton("https://repo1.maven.org/maven2/");
-		mavenExecutor.resolve(dependency, Collections.emptyList());
-		return dependency;
-	}
-
-	public Collection<Artifact> artifactDependencies(String artifact) throws Exception {
-		MavenExecutor mavenExecutor = new MavenExecutor();
-		mavenExecutor.artifact = dependency(artifact);
-		mavenExecutor.localRepository = localRepository;
-		mavenExecutor.repositories = Collections.singleton("https://repo1.maven.org/maven2/");
-		mavenExecutor.resolve();
-		Collection<Artifact> dependencies = mavenExecutor.artifact
-				.dependencies(dependency -> !(dependency.packaging.equals("pom") || "test".equals(dependency.scope)
-						|| "provided".equals(dependency.scope) || dependency.optional));
+	public Collection<Artifact> artifactDependencies(String artifactIdentifier) throws Exception {
+		Artifact artifact = artifact(artifactIdentifier);
+		Collection<Artifact> dependencies = artifact.dependencies(dependency -> !(dependency.packaging.equals("pom")
+				|| "test".equals(dependency.scope) || "provided".equals(dependency.scope) || dependency.optional));
 		assertThat(dependencies).doesNotHaveDuplicates();
 		return dependencies;
 	}

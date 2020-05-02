@@ -39,7 +39,7 @@ public class MavenExecutorArgumentTests {
 	public void testRepositories() {
 		MavenExecutor executor = parseArguments(
 				new String[] { "com.github.ArloL:newlinechecker:133576b455", "--repositories", "https://jitpack.io/" });
-		assertThat(executor.repositories).containsExactly("https://jitpack.io/");
+		assertThat(executor.maven.repositories).containsExactly("https://jitpack.io/");
 	}
 
 	@Test
@@ -47,7 +47,7 @@ public class MavenExecutorArgumentTests {
 		String settings = "/home/runner/settings.xml";
 		MavenExecutor executor = parseArguments(
 				new String[] { "com.github.ArloL:newlinechecker:133576b455", "--settings", settings });
-		assertThat(executor.settingsXml).isEqualTo(Paths.get(settings));
+		assertThat(executor.maven.settingsXml).isEqualTo(Paths.get(settings));
 	}
 
 	@Test
