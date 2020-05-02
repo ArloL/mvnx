@@ -17,7 +17,6 @@ jobs:
         restore-keys: ${{ runner.os }}-m2
     - name: Build with Maven
       run: |
-        env
         ./mvnw \
           --batch-mode \
           -Dsha1="${GITHUB_SHA}" \
@@ -44,7 +43,6 @@ jobs:
         restore-keys: ${{ runner.os }}-m2
     - name: Build with Maven
       run: |
-        env
         ./mvnw \
           --batch-mode \
           -Dsha1="${GITHUB_SHA}" \
@@ -74,7 +72,6 @@ jobs:
     - name: Build with Maven
       shell: cmd
       run: |
-        set
         call .\mvnw --batch-mode -Dsha1="%GITHUB_SHA%" -Drevision="%GITHUB_SHA%" package
         mkdir target\artifacts
         copy target\mvnx-* target\artifacts
