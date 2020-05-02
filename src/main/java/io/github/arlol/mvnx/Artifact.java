@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class Artifact {
 
@@ -38,6 +40,52 @@ public class Artifact {
 			}
 		}
 		return dependencies;
+	}
+
+	public List<Artifact> hierarchy() {
+		List<Artifact> hierarchy = new ArrayList<>();
+		if (parent != null) {
+			hierarchy.addAll(parent.hierarchy());
+		}
+		hierarchy.add(this);
+		return hierarchy;
+	}
+
+	public Map<String, String> allProperties(List<Artifact> dependents) {
+		Map<String, String> map = new HashMap<>();
+		if (parent != null) {
+			map.putAll(parent.allProperties(List.of()));
+		}
+		map.putAll(properties);
+		for (Artifact dependent : dependents) {
+			map.putAll(dependent.allProperties(List.of()));
+		}
+		return map;
+	}
+
+	public void manage(List<Artifact> dependents) {
+		Artifact override = new Artifact();
+		List<Artifact> artifacts = dependents.stream().flatMap(artifact -> artifact.hierarchy().stream()).flatMap(
+				artifact -> Stream.concat(artifact.dependencies.stream(), artifact.dependencyManagement.stream()))
+				.filter(this::equalsArtifact).collect(Collectors.toList());
+		for (Artifact artifact : artifacts) {
+			if (override.version == null) {
+				override.version = artifact.version;
+			}
+			if (override.scope == null) {
+				override.scope = artifact.scope;
+			}
+			if (override.version != null && override.scope != null) {
+				break;
+			}
+		}
+		if (override.version != null) {
+			this.version = override.version;
+		}
+		if (override.scope == null) {
+			override.scope = "compile";
+		}
+		this.scope = override.scope;
 	}
 
 	public boolean equalsArtifact(Artifact other) {
