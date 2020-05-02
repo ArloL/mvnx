@@ -62,6 +62,37 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>com.github.iarellano</groupId>
+                <artifactId>replacer</artifactId>
+                <version>1.6.0</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>replace</goal>
+                        </goals>
+                        <phase>package</phase>
+                    </execution>
+                </executions>
+                <configuration>
+                    <files>
+                        <file>src/main/resources/java-shell-shebang-template.txt</file>
+                    </files>
+                    <outputFiles>
+                        <outputFile>${project.build.directory}/${project.artifactId}-java-${project.version}</outputFile>
+                    </outputFiles>
+                    <replacements>
+                        <replacement>
+                            <token>@java.version@</token>
+                            <value>${java.version}</value>
+                        </replacement>
+                        <replacement>
+                            <token>@java.file@</token>
+                            <valueFile>src/main/java/io/github/arlol/mvnx/MavenExecutor.java</valueFile>
+                        </replacement>
+                    </replacements>
+                </configuration>
+            </plugin>
         </plugins>
         <pluginManagement>
             <plugins>
