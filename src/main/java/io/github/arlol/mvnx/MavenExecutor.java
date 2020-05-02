@@ -149,8 +149,13 @@ public class MavenExecutor {
 			for (int i = 0; i < dependencyElements.getLength(); i++) {
 				Element dependencyElement = (Element) dependencyElements.item(i);
 				Artifact dependency = artifactFromElement(dependencyElement);
-				dependency.version = template(dependency.version, artifact.properties);
-				artifact.dependencyManagement.add(dependency);
+				dependency.version = template(dependency.version, artifact.allProperties(artifacts));
+				if ("import".equals(dependency.scope)) {
+					resolve(dependency, artifacts);
+					artifact.dependencyManagement.addAll(dependency.dependencyManagement);
+				} else {
+					artifact.dependencyManagement.add(dependency);
+				}
 			}
 		}
 
