@@ -48,11 +48,9 @@ public class MavenExecutor {
 		if (mavenExecutor.mainClass == null) {
 			mavenExecutor.mainClass = mavenExecutor.artifact.properties.get("mainClass");
 		}
-		URL[] jars = getJarUrls(
-				mavenExecutor.artifact.dependencies(
-						dependency -> !(dependency.packaging.equals("pom") || "test".equals(dependency.scope)
-								|| "provided".equals(dependency.scope) || dependency.optional)),
-				mavenExecutor.localRepository, mavenExecutor.repositories);
+		URL[] jars = mavenExecutor.getJarUrls(mavenExecutor.artifact
+				.dependencies(dependency -> !(dependency.packaging.equals("pom") || "test".equals(dependency.scope)
+						|| "provided".equals(dependency.scope) || dependency.optional)));
 		URLClassLoader classLoader = new URLClassLoader(jars, MavenExecutor.class.getClassLoader());
 		Class<?> classToLoad = Class.forName(mavenExecutor.mainClass, true, classLoader);
 		classToLoad.getMethod("main", new Class[] { mavenExecutor.passthroughArguments.getClass() }).invoke(null,
@@ -248,8 +246,7 @@ public class MavenExecutor {
 		}
 	}
 
-	public static URL[] getJarUrls(Collection<Artifact> dependencies, Path localRepository, Collection<String> remotes)
-			throws Exception {
+	public URL[] getJarUrls(Collection<Artifact> dependencies) throws Exception {
 		List<URL> result = new ArrayList<>();
 		for (Artifact dependency : dependencies) {
 			Path jarPath = jarPath(dependency);
@@ -270,7 +267,7 @@ public class MavenExecutor {
 					}
 				}
 				if (url == null) {
-					for (String remote : remotes) {
+					for (String remote : repositories) {
 						URI pomUri = URI.create(remote).resolve(jarPath.toString());
 						HttpRequest request = HttpRequest.newBuilder().uri(pomUri)
 								.method("HEAD", BodyPublishers.noBody()).timeout(Duration.ofMillis(TIMEOUT_MS)).build();
