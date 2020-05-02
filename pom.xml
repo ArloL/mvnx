@@ -87,6 +87,7 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <regex>false</regex>
                     <files>
                         <file>src/main/resources/java-shell-shebang-template.txt</file>
                     </files>
