@@ -1,14 +1,13 @@
 package io.github.arlol.mvnx;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpRequest.Builder;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -93,13 +93,17 @@ public class MavenExecutor {
 		return this;
 	}
 
+	public static boolean classPathFilter(Artifact artifact) {
+		return !(artifact.packaging.equals("pom") || "test".equals(artifact.scope) || "provided".equals(artifact.scope)
+				|| artifact.optional);
+	}
+
 	public void execute() throws Exception {
-		maven.resolve(artifact, Collections.emptyList());
+		maven.resolve(artifact, Collections.emptyList(), MavenExecutor::classPathFilter);
 		if (mainClass == null) {
 			mainClass = artifact.properties.get("mainClass");
 		}
-		URL[] jars = getJarUrls(artifact.dependencies(dependency -> !(dependency.packaging.equals("pom")
-				|| "test".equals(dependency.scope) || "provided".equals(dependency.scope) || dependency.optional)));
+		URL[] jars = getJarUrls(artifact.dependencies(MavenExecutor::classPathFilter));
 		URLClassLoader classLoader = new URLClassLoader(jars);
 		Class<?> classToLoad = Class.forName(mainClass, true, classLoader);
 		classToLoad.getMethod("main", new Class[] { passthroughArguments.getClass() }).invoke(null,
@@ -109,42 +113,7 @@ public class MavenExecutor {
 	public URL[] getJarUrls(Collection<Artifact> dependencies) throws Exception {
 		List<URL> result = new ArrayList<>();
 		for (Artifact dependency : dependencies) {
-			Path jarPath = Maven.path(dependency);
-			Path absoluteJarPath = maven.localRepository.resolve(jarPath);
-
-			URL url = null;
-			if (Files.exists(absoluteJarPath)) {
-				url = absoluteJarPath.toUri().toURL();
-			} else {
-				if (dependency.remote != null) {
-					URI pomUri = URI.create(dependency.remote).resolve(jarPath.toString().replace('\\', '/'));
-					HttpRequest request = HttpRequest.newBuilder().uri(pomUri).method("HEAD", BodyPublishers.noBody())
-							.timeout(Duration.ofMillis(TIMEOUT_MS)).build();
-					HttpResponse<Void> response = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.ALWAYS)
-							.build().send(request, HttpResponse.BodyHandlers.discarding());
-					if (response.statusCode() == 200) {
-						url = pomUri.toURL();
-					}
-				}
-				if (url == null) {
-					for (String remote : maven.repositories) {
-						URI pomUri = URI.create(remote).resolve(jarPath.toString().replace('\\', '/'));
-						HttpRequest request = HttpRequest.newBuilder().uri(pomUri)
-								.method("HEAD", BodyPublishers.noBody()).timeout(Duration.ofMillis(TIMEOUT_MS)).build();
-						HttpResponse<Void> response = HttpClient.newBuilder()
-								.followRedirects(HttpClient.Redirect.ALWAYS).build()
-								.send(request, HttpResponse.BodyHandlers.discarding());
-						if (response.statusCode() == 200) {
-							url = pomUri.toURL();
-							break;
-						}
-					}
-				}
-				if (url == null) {
-					throw new IllegalArgumentException("Download failed " + jarPath);
-				}
-			}
-			result.add(url);
+			result.add(maven.uri(dependency, dependency.extension()).toURL());
 		}
 		return result.toArray(URL[]::new);
 	}
@@ -157,21 +126,15 @@ public class MavenExecutor {
 		boolean inMemory = true;
 		Collection<String> repositories = List.of("https://repo.maven.apache.org/maven2/", "https://jitpack.io/");
 
-		public Document xmlDocument(InputSource inputSource) {
-			try {
-				DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-				Document document = documentBuilder.parse(inputSource);
-				document.getDocumentElement().normalize();
-				return document;
-			} catch (SAXException | ParserConfigurationException | IOException e) {
-				throw new IllegalStateException(e);
-			}
-		}
+		private DocumentBuilder documentBuilder;
 
-		public Document xmlDocument(Path path) {
-			try (InputStream inputStream = Files.newInputStream(path)) {
-				return xmlDocument(new InputSource(inputStream));
-			} catch (IOException e) {
+		public Document xmlDocument(URI uri) {
+			try {
+				if (documentBuilder == null) {
+					documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+				}
+				return documentBuilder.parse(new InputSource(uri.toASCIIString()));
+			} catch (SAXException | ParserConfigurationException | IOException e) {
 				throw new IllegalStateException(e);
 			}
 		}
@@ -180,136 +143,176 @@ public class MavenExecutor {
 			Path path = path(artifact, "pom");
 			Path absolutePath = localRepository.resolve(path);
 			if (Files.exists(absolutePath)) {
-				return xmlDocument(absolutePath);
+				return xmlDocument(absolutePath.toUri());
+			}
+			return xmlDocument(uri(artifact, "pom"));
+		}
+
+		public URI uri(Artifact artifact, String extension) {
+			Path path = Maven.path(artifact, extension);
+			Path absolutePath = localRepository.resolve(path);
+			if (Files.exists(absolutePath)) {
+				return absolutePath.toUri();
+			}
+			if (artifact.remote != null) {
+				URI uri = uri(artifact.remote, path, absolutePath);
+				if (uri != null) {
+					return uri;
+				}
 			}
 			for (String remote : repositories) {
-				URI uri = URI.create(remote).resolve(path.toString().replace('\\', '/'));
-				try {
-					HttpRequest request = HttpRequest.newBuilder().uri(uri).timeout(Duration.ofMillis(TIMEOUT_MS))
-							.build();
-					HttpClient httpClient = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
-					if (inMemory) {
-						HttpResponse<byte[]> response = httpClient.send(request,
-								HttpResponse.BodyHandlers.ofByteArray());
-						if (response.statusCode() == 200) {
-							return xmlDocument(new InputSource(new ByteArrayInputStream(response.body())));
-						}
-					} else {
-						Files.createDirectories(absolutePath.getParent());
-						HttpResponse<Path> response = httpClient.send(request,
-								HttpResponse.BodyHandlers.ofFile(absolutePath));
-						if (response.statusCode() == 200) {
-							return xmlDocument(response.body());
-						}
-					}
-				} catch (IOException | InterruptedException e) {
-					throw new IllegalStateException(e);
+				URI uri = uri(remote, path, absolutePath);
+				if (uri != null) {
+					artifact.remote = remote;
+					return uri;
 				}
 			}
 			throw new IllegalArgumentException("Download failed " + path);
 		}
 
+		public URI uri(String remote, Path path, Path absolutePath) {
+			try {
+				URI uri = URI.create(remote).resolve(path.toString().replace('\\', '/'));
+				HttpClient httpClient = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
+				Builder requestBuilder = HttpRequest.newBuilder().uri(uri).timeout(Duration.ofMillis(TIMEOUT_MS));
+				if (inMemory) {
+					HttpRequest request = requestBuilder.method("HEAD", BodyPublishers.noBody()).build();
+					HttpResponse<Void> response = httpClient.send(request, HttpResponse.BodyHandlers.discarding());
+					if (response.statusCode() == 200) {
+						return uri;
+					}
+				} else {
+					Files.createDirectories(absolutePath.getParent());
+					HttpResponse<Path> response = httpClient.send(requestBuilder.build(),
+							HttpResponse.BodyHandlers.ofFile(absolutePath));
+					if (response.statusCode() == 200) {
+						return response.body().toUri();
+					}
+				}
+			} catch (IOException | InterruptedException e) {
+				throw new IllegalStateException(e);
+			}
+			return null;
+		}
+
 		public Path localRepository(Path userHomeM2, Path settingsXml) {
 			if (Files.exists(settingsXml)) {
-				String localRepository = getTextContentFromFirstChildElementByTagName(
-						xmlDocument(settingsXml).getDocumentElement(), "localRepository");
-				if (localRepository != null && !localRepository.isBlank()) {
-					return Paths.get(template(localRepository, Collections.emptyMap()));
+				NodeList elements = xmlDocument(settingsXml.toUri()).getElementsByTagName("localRepository");
+				if (elements.getLength() > 0 && !elements.item(0).getTextContent().isBlank()) {
+					return Paths.get(template(elements.item(0).getTextContent(),
+							Maven::lookupSystemPropertyOrEnvironmentVariable));
 				}
 			}
 			return userHomeM2.resolve("repository");
 		}
 
-		public void resolve(Artifact artifact, List<Artifact> artifacts) {
-			artifacts = new ArrayList<>(artifacts);
-			artifacts.add(artifact);
+		public void resolve(Artifact artifact, List<Artifact> artifacts, Predicate<Artifact> filter) {
+			List<Artifact> artifactHierarchy = new ArrayList<>(artifacts);
+			artifactHierarchy.add(artifact);
 
 			Document xmlDocument = pom(artifact);
-
 			Element projectElement = xmlDocument.getDocumentElement();
 
-			List<Element> parentElements = getChildElementsByTagName(projectElement, "parent");
-			if (parentElements.size() == 1) {
-				Artifact parent = artifactFromElement(parentElements.get(0));
-				parent.packaging = "pom";
-				resolve(parent, artifacts);
-				artifact.parent = parent;
-			}
-
-			artifact.artifactId = getTextContentFromFirstChildElementByTagName(projectElement, "artifactId");
-			artifact.groupId = getTextContentFromFirstChildElementByTagName(projectElement, "groupId");
-			artifact.version = getTextContentFromFirstChildElementByTagName(projectElement, "version");
-			artifact.packaging = getTextContentFromFirstChildElementByTagName(projectElement, "packaging");
-
-			if (artifact.groupId == null) {
-				artifact.groupId = artifact.parent.groupId;
-			}
-			if (artifact.version == null) {
-				artifact.version = artifact.parent.version;
-			}
-			if (artifact.packaging == null) {
-				artifact.packaging = "jar";
-			}
-
-			artifact.properties.put("project.version", artifact.version);
-
-			List<Element> propertiesElements = getChildElementsByTagName(projectElement, "properties");
-			if (!propertiesElements.isEmpty()) {
-				NodeList propertyNodes = propertiesElements.get(0).getChildNodes();
-				for (int i = 0; i < propertyNodes.getLength(); i++) {
-					Node propertyNode = propertyNodes.item(i);
-					if (propertyNode.getNodeType() == Node.ELEMENT_NODE) {
-						Element propertyElement = (Element) propertyNode;
-						artifact.properties.put(propertyElement.getTagName(), propertyElement.getTextContent());
+			for (int i = 0; i < projectElement.getChildNodes().getLength(); i++) {
+				Node item = projectElement.getChildNodes().item(i);
+				switch (item.getNodeName()) {
+				case "parent":
+					Artifact parent = artifactFromNode(item);
+					parent.packaging = "pom";
+					resolve(parent, artifactHierarchy, filter);
+					artifact.parent = parent;
+					if (artifact.version == null) {
+						artifact.version = artifact.parent.version;
+						artifact.properties.put("project.version", artifact.version);
 					}
-				}
-			}
-
-			List<Element> dependencyManagementElements = getChildElementsByTagName(projectElement,
-					"dependencyManagement");
-			if (!dependencyManagementElements.isEmpty()) {
-				NodeList dependencyElements = dependencyManagementElements.get(0).getElementsByTagName("dependency");
-				for (int i = 0; i < dependencyElements.getLength(); i++) {
-					Element dependencyElement = (Element) dependencyElements.item(i);
-					Artifact dependency = artifactFromElement(dependencyElement);
-					dependency.version = template(dependency.version, artifact.allProperties(artifacts));
-					if ("import".equals(dependency.scope)) {
-						resolve(dependency, artifacts);
-						artifact.dependencyManagement.addAll(dependency.dependencyManagement);
-					} else {
-						artifact.dependencyManagement.add(dependency);
+					if (artifact.groupId == null) {
+						artifact.groupId = artifact.parent.groupId;
 					}
-				}
-			}
-
-			List<Element> dependenciesElements = getChildElementsByTagName(projectElement, "dependencies");
-			if (!dependenciesElements.isEmpty()) {
-				List<Element> dependencyElements = getChildElementsByTagName(dependenciesElements.get(0), "dependency");
-				for (Element dependencyElement : dependencyElements) {
-					Artifact dependency = artifactFromElement(dependencyElement);
-					dependency.version = template(dependency.version, artifact.allProperties(artifacts));
-					artifact.dependencies.add(dependency);
-				}
-			}
-
-			if (artifact.parent != null) {
-				Artifact searchArtifact = artifact.parent;
-				while (searchArtifact != null) {
-					for (Artifact dependency : searchArtifact.dependencies) {
-						String version = dependency.version;
-						dependency.manage(artifacts);
-						if (!dependency.version.equals(version)) {
-							resolve(dependency, artifacts);
+					break;
+				case "groupId":
+					artifact.groupId = item.getTextContent();
+					break;
+				case "artifactId":
+					artifact.artifactId = item.getTextContent();
+					break;
+				case "version":
+					artifact.version = item.getTextContent();
+					artifact.properties.put("project.version", artifact.version);
+					break;
+				case "packaging":
+					artifact.packaging = item.getTextContent();
+					break;
+				case "properties":
+					NodeList propertyNodes = item.getChildNodes();
+					for (int j = 0; j < propertyNodes.getLength(); j++) {
+						Node propertyNode = propertyNodes.item(j);
+						if (propertyNode.getNodeType() == Node.ELEMENT_NODE) {
+							Element propertyElement = (Element) propertyNode;
+							artifact.properties.put(propertyElement.getTagName(), propertyElement.getTextContent());
 						}
 					}
-					searchArtifact = searchArtifact.parent;
+					break;
+				case "dependencyManagement":
+					NodeList dependencyElements = ((Element) item).getElementsByTagName("dependency");
+					for (int j = 0; j < dependencyElements.getLength(); j++) {
+						Artifact dependency = artifactFromNode(dependencyElements.item(j));
+						dependency.version = template(dependency.version,
+								key -> lookupProperty(key, artifactHierarchy));
+						if ("import".equals(dependency.scope)) {
+							resolve(dependency, artifactHierarchy, filter);
+							artifact.dependencyManagement.addAll(dependency.dependencyManagement);
+						} else {
+							artifact.dependencyManagement.add(dependency);
+						}
+					}
+					break;
+				case "dependencies":
+					NodeList dependencyNodes = item.getChildNodes();
+					for (int j = 0; j < dependencyNodes.getLength(); j++) {
+						Node dependencyNode = dependencyNodes.item(j);
+						if (dependencyNode.getNodeType() == Node.ELEMENT_NODE) {
+							Artifact dependency = artifactFromNode(dependencyNode);
+							artifact.dependencies.add(dependency);
+						}
+					}
+					break;
 				}
 			}
 
 			for (Artifact dependency : artifact.dependencies) {
-				dependency.manage(artifacts);
-				resolve(dependency, artifacts);
+				if (filter.test(dependency)) {
+					dependency.version = template(dependency.version, key -> lookupProperty(key, artifactHierarchy));
+					manage(dependency, artifactHierarchy);
+					resolve(dependency, artifactHierarchy, filter);
+				}
 			}
+		}
+
+		public static void manage(Artifact artifact, List<Artifact> dependents) {
+			String version = null;
+			String scope = null;
+			List<Artifact> dependencies = dependents.stream().flatMap(dependent -> dependent.hierarchy().stream())
+					.flatMap(dependent -> Stream.concat(dependent.dependencies.stream(),
+							dependent.dependencyManagement.stream()))
+					.filter(artifact::equalsArtifact).collect(Collectors.toList());
+			for (Artifact dependency : dependencies) {
+				if (version == null) {
+					version = dependency.version;
+				}
+				if (scope == null) {
+					scope = dependency.scope;
+				}
+				if (version != null && scope != null) {
+					break;
+				}
+			}
+			if (version != null) {
+				artifact.version = version;
+			}
+			if (scope == null) {
+				scope = "compile";
+			}
+			artifact.scope = scope;
 		}
 
 		public static Path userHomeM2(Path userHome) {
@@ -320,96 +323,85 @@ public class MavenExecutor {
 			return userHomeM2.resolve("settings.xml");
 		}
 
-		public static String template(String text, Map<?, ?> properties) {
+		public static String lookupSystemPropertyOrEnvironmentVariable(String key) {
+			return Optional.ofNullable(System.getProperty(key))
+					.orElseGet(() -> System.getenv(key.substring("env.".length())));
+		}
+
+		public static String lookupProperty(String key, List<Artifact> artifacts) {
+			for (Artifact artifact : artifacts) {
+				String value = artifact.properties.get(key);
+				if (value != null) {
+					return value;
+				}
+				if (artifact.parent != null) {
+					value = lookupProperty(key, Collections.singletonList(artifact.parent));
+					if (value != null) {
+						return value;
+					}
+				}
+			}
+			return lookupSystemPropertyOrEnvironmentVariable(key);
+		}
+
+		public static String template(String text, Function<String, String> lookupFunction) {
 			if (text == null) {
 				return text;
 			}
 
-			Map<Object, Object> map = new HashMap<>(properties);
-			System.getenv().forEach(map::putIfAbsent);
-			System.getProperties().forEach(map::putIfAbsent);
-
-			String input;
-			String output = text;
-
-			do {
-				input = output;
-
-				final Matcher mat = PROPERTIES_TOKEN.matcher(input);
-				StringBuilder builder = new StringBuilder();
-				int last = 0;
-				while (mat.find()) {
-					builder.append(input.substring(last, mat.start()));
-					String key = mat.group(1);
-					String lookup = key;
-					if (lookup.startsWith("env.")) {
-						lookup = lookup.substring("env.".length());
-					}
-					Object value = map.get(lookup);
-					if (value != null) {
-						builder.append(value);
-					} else {
-						builder.append("${").append(key).append("}");
-					}
-					last = mat.end();
+			final Matcher mat = PROPERTIES_TOKEN.matcher(text);
+			StringBuilder builder = new StringBuilder();
+			int last = 0;
+			while (mat.find()) {
+				builder.append(text.substring(last, mat.start()));
+				String key = mat.group(1);
+				String value = lookupFunction.apply(key);
+				value = template(value, lookupFunction);
+				if (value != null) {
+					builder.append(value);
+				} else {
+					builder.append("${").append(key).append("}");
 				}
-				builder.append(input.substring(last));
-				output = builder.toString();
-
-			} while (!output.equals(input));
-
-			return output;
-		}
-
-		private static String getTextContentFromFirstChildElementByTagName(Element element, String tagName) {
-			return Optional.of(getChildElementsByTagName(element, tagName)).filter(l -> !l.isEmpty())
-					.map(l -> l.get(0).getTextContent()).orElse(null);
-		}
-
-		public static List<Element> getChildElementsByTagName(Element element, String tagName) {
-			List<Element> result = new ArrayList<>();
-			NodeList childNodes = element.getChildNodes();
-			for (int i = 0; i < childNodes.getLength(); i++) {
-				Node item = childNodes.item(i);
-				if (tagName.equals(item.getNodeName())) {
-					result.add((Element) item);
-				}
+				last = mat.end();
 			}
-			return result;
+
+			if (last == 0) {
+				return text;
+			}
+
+			builder.append(text.substring(last));
+
+			return builder.toString();
 		}
 
-		private static Artifact artifactFromElement(Element element) {
+		private static Artifact artifactFromNode(Node node) {
 			Artifact artifact = new Artifact();
-			artifact.groupId = getTextContentFromFirstChildElementByTagName(element, "groupId");
-			artifact.artifactId = getTextContentFromFirstChildElementByTagName(element, "artifactId");
-
-			String version = getTextContentFromFirstChildElementByTagName(element, "version");
-			if (version != null) {
-				artifact.version = version;
+			for (int i = 0; i < node.getChildNodes().getLength(); i++) {
+				Node item = node.getChildNodes().item(i);
+				switch (item.getNodeName()) {
+				case "groupId":
+					artifact.groupId = item.getTextContent();
+					break;
+				case "artifactId":
+					artifact.artifactId = item.getTextContent();
+					break;
+				case "version":
+					artifact.version = item.getTextContent();
+					break;
+				case "scope":
+					artifact.scope = item.getTextContent();
+					break;
+				case "classifier":
+					artifact.classifier = item.getTextContent();
+					break;
+				case "type":
+					artifact.packaging = item.getTextContent();
+					break;
+				case "optional":
+					artifact.optional = Boolean.parseBoolean(item.getTextContent());
+					break;
+				}
 			}
-
-			String scope = getTextContentFromFirstChildElementByTagName(element, "scope");
-			if (scope != null) {
-				artifact.scope = scope;
-			}
-
-			String classifier = getTextContentFromFirstChildElementByTagName(element, "classifier");
-			if (classifier != null) {
-				artifact.classifier = classifier;
-			}
-
-			String type = getTextContentFromFirstChildElementByTagName(element, "type");
-			if (type != null) {
-				artifact.packaging = type;
-			} else {
-				artifact.packaging = "jar";
-			}
-
-			String optional = getTextContentFromFirstChildElementByTagName(element, "optional");
-			if ("true".equals(optional)) {
-				artifact.optional = true;
-			}
-
 			return artifact;
 		}
 
@@ -431,7 +423,7 @@ public class MavenExecutor {
 		String groupId;
 		String artifactId;
 		String version;
-		String packaging;
+		String packaging = "jar";
 		String classifier;
 		String scope;
 		boolean optional = false;
@@ -465,42 +457,8 @@ public class MavenExecutor {
 			return hierarchy;
 		}
 
-		public Map<String, String> allProperties(List<Artifact> dependents) {
-			Map<String, String> map = new HashMap<>();
-			if (parent != null) {
-				map.putAll(parent.allProperties(List.of()));
-			}
-			map.putAll(properties);
-			for (Artifact dependent : dependents) {
-				map.putAll(dependent.allProperties(List.of()));
-			}
-			return map;
-		}
-
-		public void manage(List<Artifact> dependents) {
-			String version = null;
-			String scope = null;
-			List<Artifact> artifacts = dependents.stream().flatMap(artifact -> artifact.hierarchy().stream()).flatMap(
-					artifact -> Stream.concat(artifact.dependencies.stream(), artifact.dependencyManagement.stream()))
-					.filter(this::equalsArtifact).collect(Collectors.toList());
-			for (Artifact artifact : artifacts) {
-				if (version == null) {
-					version = artifact.version;
-				}
-				if (scope == null) {
-					scope = artifact.scope;
-				}
-				if (version != null && scope != null) {
-					break;
-				}
-			}
-			if (version != null) {
-				this.version = version;
-			}
-			if (scope == null) {
-				scope = "compile";
-			}
-			this.scope = scope;
+		public String extension() {
+			return packaging;
 		}
 
 		public boolean equalsArtifact(Artifact other) {

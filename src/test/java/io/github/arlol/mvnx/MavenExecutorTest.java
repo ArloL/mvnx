@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.function.Function;
 
 import org.junit.jupiter.api.Test;
 
@@ -80,7 +81,7 @@ public class MavenExecutorTest {
 	@Test
 	public void testPomWithNoDependenciesAndDependencyManagement() throws Exception {
 		Artifact artifact = artifact("org.slf4j:slf4j-parent:1.7.30");
-		assertThat(artifact.dependencies).hasSize(1);
+		assertThat(artifact.dependencies).containsExactly(d("junit:junit:${junit.version}", "test"));
 		assertThat(artifact.dependencyManagement).hasSize(4);
 	}
 
@@ -143,7 +144,7 @@ public class MavenExecutorTest {
 		assertThat(artifact).isNotNull();
 		assertThat(artifact.dependencies).isNotEmpty();
 		assertThat(artifact.dependencies).containsExactly(d("org.slf4j:slf4j-api:1.7.30"));
-		assertThat(artifact.parent.dependencies).containsExactly(d("junit:junit:4.12", "test"));
+		assertThat(artifact.parent.dependencies).containsExactly(d("junit:junit:${junit.version}", "test"));
 	}
 
 	@Test
@@ -201,29 +202,33 @@ public class MavenExecutorTest {
 	@Test
 	public void testTemplateEnvironmentVariable() throws Exception {
 		Entry<String, String> firstEnvironmentVariable = System.getenv().entrySet().iterator().next();
-		String template = MavenExecutor.Maven.template("${env." + firstEnvironmentVariable.getKey() + "}",
-				Collections.emptyMap());
+		String template = template("${env." + firstEnvironmentVariable.getKey() + "}",
+				key -> System.getenv().get(key.substring("env.".length())));
 		assertThat(template).isEqualTo(firstEnvironmentVariable.getValue());
 	}
 
 	@Test
 	public void testTemplateSystemProperty() throws Exception {
 		System.setProperty("averyspecificsystempropertykey", "averyspecificsystempropertyvalue");
-		String template = MavenExecutor.Maven.template("${averyspecificsystempropertykey}", Collections.emptyMap());
+		String template = template("${averyspecificsystempropertykey}", key -> System.getProperty(key));
 		assertThat(template).isEqualTo("averyspecificsystempropertyvalue");
 	}
 
 	@Test
 	public void testPropertyReferencingOtherProperty() throws Exception {
 		Map<String, String> properties = Map.of("key1", "${key2}", "key2", "value");
-		String template = MavenExecutor.Maven.template("${key1}", properties);
+		String template = template("${key1}", properties::get);
 		assertThat(template).isEqualTo("value");
 	}
 
 	@Test
 	public void testUnresolvableProperty() throws Exception {
-		String template = MavenExecutor.Maven.template("${key1}", Collections.emptyMap());
+		String template = template("${key1}", key -> null);
 		assertThat(template).isEqualTo("${key1}");
+	}
+
+	public String template(String text, Function<String, String> lookupFunction) {
+		return MavenExecutor.Maven.template(text, lookupFunction);
 	}
 
 	/**
@@ -259,7 +264,7 @@ public class MavenExecutorTest {
 		maven.localRepository = TestPaths.get("maven-repository");
 		maven.repositories = Collections.singleton("http://localhost:62085");
 		Artifact artifact = d(artifactIdentifier);
-		maven.resolve(artifact, Collections.emptyList());
+		maven.resolve(artifact, Collections.emptyList(), MavenExecutor::classPathFilter);
 		return artifact;
 	}
 
