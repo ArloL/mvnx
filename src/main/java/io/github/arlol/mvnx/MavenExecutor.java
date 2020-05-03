@@ -283,7 +283,9 @@ public class MavenExecutor {
 				if (filter.test(dependency)) {
 					dependency.version = template(dependency.version, key -> lookupProperty(key, artifactHierarchy));
 					manage(dependency, artifactHierarchy);
-					resolve(dependency, artifactHierarchy, filter);
+					if (filter.test(dependency)) {
+						resolve(dependency, artifactHierarchy, filter);
+					}
 				}
 			}
 		}
