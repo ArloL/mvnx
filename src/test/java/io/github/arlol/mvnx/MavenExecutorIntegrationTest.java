@@ -29,8 +29,8 @@ public class MavenExecutorIntegrationTest {
 	@Test
 	public void testWaitForPorts() throws Exception {
 		Path repository = TestPaths.get("maven-repository");
-		MavenExecutor.main(new String[] { "com.github.arlol:wait-for-ports:35b1ce08e2", "--localRepository",
-				repository.toString(), "--", "wrongarg" });
+		MavenExecutor.main(new String[] { "com.github.arlol:wait-for-ports:35b1ce08e2", "--saveToLocalRepository",
+				"--localRepository", repository.toString(), "--", "wrongarg" });
 	}
 
 }
