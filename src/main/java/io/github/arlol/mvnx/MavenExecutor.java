@@ -113,7 +113,7 @@ public class MavenExecutor {
 	public URL[] getJarUrls(Collection<Artifact> dependencies) throws Exception {
 		List<URL> result = new ArrayList<>();
 		for (Artifact dependency : dependencies) {
-			result.add(maven.uri(dependency, dependency.extension()).toURL());
+			result.add(maven.uri(dependency, dependency.packaging).toURL());
 		}
 		return result.toArray(URL[]::new);
 	}
@@ -455,10 +455,6 @@ public class MavenExecutor {
 			}
 			hierarchy.add(this);
 			return hierarchy;
-		}
-
-		public String extension() {
-			return packaging;
 		}
 
 		public boolean equalsArtifact(Artifact other) {
