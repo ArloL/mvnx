@@ -259,8 +259,7 @@ public class MavenExecutor {
 					NodeList dependencyElements = ((Element) item).getElementsByTagName("dependency");
 					for (int j = 0; j < dependencyElements.getLength(); j++) {
 						Artifact dependency = artifactFromNode(dependencyElements.item(j));
-						dependency.version = template(dependency.version,
-								key -> lookupProperty(key, artifactHierarchy));
+						resolveProperties(dependency, key -> lookupProperty(key, artifactHierarchy));
 						if ("import".equals(dependency.scope)) {
 							resolve(dependency, artifactHierarchy, filter);
 							artifact.dependencyManagement.addAll(dependency.dependencyManagement);
@@ -284,10 +283,12 @@ public class MavenExecutor {
 
 			for (Artifact dependency : artifact.dependencies) {
 				if (filter.test(dependency)) {
-					dependency.version = template(dependency.version, key -> lookupProperty(key, artifactHierarchy));
-					manage(dependency, artifactHierarchy);
+					resolveProperties(dependency, key -> lookupProperty(key, artifactHierarchy));
 					if (filter.test(dependency)) {
-						resolve(dependency, artifactHierarchy, filter);
+						manage(dependency, artifactHierarchy);
+						if (filter.test(dependency)) {
+							resolve(dependency, artifactHierarchy, filter);
+						}
 					}
 				}
 			}
@@ -347,6 +348,15 @@ public class MavenExecutor {
 				}
 			}
 			return lookupSystemPropertyOrEnvironmentVariable(key);
+		}
+
+		public static void resolveProperties(Artifact artifact, Function<String, String> lookupFunction) {
+			artifact.groupId = template(artifact.groupId, lookupFunction);
+			artifact.artifactId = template(artifact.artifactId, lookupFunction);
+			artifact.version = template(artifact.version, lookupFunction);
+			artifact.classifier = template(artifact.classifier, lookupFunction);
+			artifact.packaging = template(artifact.packaging, lookupFunction);
+			artifact.scope = template(artifact.scope, lookupFunction);
 		}
 
 		public static String template(String text, Function<String, String> lookupFunction) {
