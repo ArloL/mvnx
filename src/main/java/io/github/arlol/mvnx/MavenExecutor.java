@@ -405,10 +405,6 @@ public class MavenExecutor {
 			return artifact;
 		}
 
-		public static Path path(Artifact dependency) {
-			return path(dependency, dependency.packaging);
-		}
-
 		public static Path path(Artifact dependency, String extension) {
 			return Paths.get(dependency.groupId.replace(".", "/")).resolve(dependency.artifactId)
 					.resolve(dependency.version)
