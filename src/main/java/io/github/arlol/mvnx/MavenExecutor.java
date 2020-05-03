@@ -83,6 +83,9 @@ public class MavenExecutor {
 				passthroughArguments = Arrays.copyOfRange(arguments, i + 1, arguments.length);
 				i = arguments.length;
 				break;
+			case "--saveToLocalRepository":
+				maven.saveToLocalRepository = true;
+				break;
 			default:
 				break;
 			}
@@ -123,7 +126,7 @@ public class MavenExecutor {
 		Path userHomeM2 = userHomeM2(Paths.get(System.getProperty("user.home")));
 		Path settingsXml = settingsXml(userHomeM2);
 		Path localRepository;
-		boolean inMemory = true;
+		boolean saveToLocalRepository = false;
 		Collection<String> repositories = List.of("https://repo.maven.apache.org/maven2/", "https://jitpack.io/");
 
 		private DocumentBuilder documentBuilder;
@@ -175,18 +178,18 @@ public class MavenExecutor {
 				URI uri = URI.create(remote).resolve(path.toString().replace('\\', '/'));
 				HttpClient httpClient = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
 				Builder requestBuilder = HttpRequest.newBuilder().uri(uri).timeout(Duration.ofMillis(TIMEOUT_MS));
-				if (inMemory) {
-					HttpRequest request = requestBuilder.method("HEAD", BodyPublishers.noBody()).build();
-					HttpResponse<Void> response = httpClient.send(request, HttpResponse.BodyHandlers.discarding());
-					if (response.statusCode() == 200) {
-						return uri;
-					}
-				} else {
+				if (saveToLocalRepository) {
 					Files.createDirectories(absolutePath.getParent());
 					HttpResponse<Path> response = httpClient.send(requestBuilder.build(),
 							HttpResponse.BodyHandlers.ofFile(absolutePath));
 					if (response.statusCode() == 200) {
 						return response.body().toUri();
+					}
+				} else {
+					HttpRequest request = requestBuilder.method("HEAD", BodyPublishers.noBody()).build();
+					HttpResponse<Void> response = httpClient.send(request, HttpResponse.BodyHandlers.discarding());
+					if (response.statusCode() == 200) {
+						return uri;
 					}
 				}
 			} catch (IOException | InterruptedException e) {

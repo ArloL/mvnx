@@ -260,7 +260,7 @@ public class MavenExecutorTest {
 
 	public Artifact artifact(String artifactIdentifier) throws Exception {
 		Maven maven = new MavenExecutor.Maven();
-		maven.inMemory = true;
+		maven.saveToLocalRepository = false;
 		maven.localRepository = TestPaths.get("maven-repository");
 		maven.repositories = Collections.singleton("http://localhost:62085");
 		Artifact artifact = d(artifactIdentifier);
