@@ -97,7 +97,7 @@ jobs:
       env:
         REVISION: ${{ needs.version.outputs.new_version }}
       run: |
-        call .\mvnw --batch-mode -Dsha1="%GITHUB_SHA%" -Drevision="%REVISION%" --settings .\.mvn\github-actions-windows-maven-settings.xml verify
+        call .\mvnw --batch-mode -Dsha1="%GITHUB_SHA%" -Drevision="%REVISION%" verify
         mkdir target\artifacts
         copy target\mvnx-* target\artifacts
     - uses: actions/upload-artifact@v1
