@@ -1,6 +1,12 @@
 name: Continuous Integration
 
-on: [push]
+on:
+  push:
+    branches-ignore:
+      - master
+  schedule:
+    - cron: '6 22 22 * *'
+
 jobs:
   macos:
     runs-on: macos-latest
@@ -16,19 +22,21 @@ jobs:
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
     - name: Build with Maven
+      env:
+        REVISION: ${{ github.sha }}
       run: |
         ./mvnw \
           --batch-mode \
           -Dsha1="${GITHUB_SHA}" \
-          -Drevision="${GITHUB_SHA}" \
-          package
+          -Drevision="${REVISION}" \
+          verify
         mkdir target/artifacts
         cp target/mvnx-* target/artifacts
     - uses: actions/upload-artifact@v1
       with:
-        name: mvnx artifacts from ${{runner.os}} build
+        name: mvnx-${{ github.job }}-${{ github.sha }}
         path: target/artifacts
-  ubuntu:
+  linux:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
@@ -42,17 +50,19 @@ jobs:
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
     - name: Build with Maven
+      env:
+        REVISION: ${{ github.sha }}
       run: |
         ./mvnw \
           --batch-mode \
           -Dsha1="${GITHUB_SHA}" \
-          -Drevision="${GITHUB_SHA}" \
-          package
+          -Drevision="${REVISION}" \
+          verify
         mkdir target/artifacts
         cp target/mvnx-* target/artifacts
     - uses: actions/upload-artifact@v1
       with:
-        name: mvnx artifacts from ${{runner.os}} build
+        name: mvnx-${{ github.job }}-${{ github.sha }}
         path: target/artifacts
   windows:
     runs-on: windows-latest
@@ -71,16 +81,18 @@ jobs:
         restore-keys: ${{ runner.os }}-m2
     - name: Build with Maven
       shell: cmd
+      env:
+        REVISION: ${{ needs.version.outputs.new_version }}
       run: |
-        call .\mvnw --batch-mode -Dsha1="%GITHUB_SHA%" -Drevision="%GITHUB_SHA%" package
+        call .\mvnw --batch-mode -Dsha1="%GITHUB_SHA%" -Drevision="%REVISION%" verify
         mkdir target\artifacts
         copy target\mvnx-* target\artifacts
     - uses: actions/upload-artifact@v1
       with:
-        name: mvnx artifacts from ${{runner.os}} build
+        name: mvnx-${{ github.job }}-${{ github.sha }}
         path: target/artifacts
   deploy:
-    needs: [macos, ubuntu, windows]
+    needs: [macos, linux, windows]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
@@ -94,13 +106,14 @@ jobs:
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
     - name: Publish to GitHub Packages Apache Maven
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        REVISION: ${{ github.sha }}
       run: |
         ./mvnw \
           --batch-mode \
           --settings ./.mvn/github-packages-settings.xml \
           -Dsha1="${GITHUB_SHA}" \
-          -Drevision="${GITHUB_SHA}" \
+          -Drevision="${REVISION}" \
           -DaltDeploymentRepository="github::default::https://maven.pkg.github.com/${GITHUB_REPOSITORY}" \
           deploy
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
