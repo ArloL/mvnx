@@ -80,6 +80,8 @@ jobs:
         path: target/artifacts
   windows:
     runs-on: windows-latest
+    env:
+      USER: runner
     needs: version
     steps:
     - uses: actions/checkout@v1
