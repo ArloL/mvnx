@@ -82,7 +82,7 @@ jobs:
     - name: Build with Maven
       shell: cmd
       env:
-        REVISION: ${{ needs.version.outputs.new_version }}
+        REVISION: ${{ github.sha }}
       run: |
         call .\mvnw --batch-mode -Dsha1="%GITHUB_SHA%" -Drevision="%REVISION%" verify
         mkdir target\artifacts
