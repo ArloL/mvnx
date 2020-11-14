@@ -32,7 +32,7 @@ jobs:
           verify
         mkdir target/artifacts
         cp target/mvnx-* target/artifacts
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@v2.2.1
       with:
         name: mvnx-${{ github.job }}-${{ github.sha }}
         path: target/artifacts
@@ -60,7 +60,7 @@ jobs:
           verify
         mkdir target/artifacts
         cp target/mvnx-* target/artifacts
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@v2.2.1
       with:
         name: mvnx-${{ github.job }}-${{ github.sha }}
         path: target/artifacts
@@ -87,7 +87,7 @@ jobs:
         call .\mvnw --batch-mode -Dsha1="%GITHUB_SHA%" -Drevision="%REVISION%" verify
         mkdir target\artifacts
         copy target\mvnx-* target\artifacts
-    - uses: actions/upload-artifact@v1
+    - uses: actions/upload-artifact@v2.2.1
       with:
         name: mvnx-${{ github.job }}-${{ github.sha }}
         path: target/artifacts
