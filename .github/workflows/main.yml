@@ -1,15 +1,44 @@
-name: Release
+name: Main
 
 on:
   push:
-    branches:
-      - master
+  schedule:
+  - cron: '6 22 22 * *'
+env:
+  ARTIFACT: mvnx
 
 jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Dump GitHub context
+      env:
+        GITHUB_CONTEXT: ${{ toJSON(github) }}
+      run: echo "$GITHUB_CONTEXT"
+    - name: Dump job context
+      env:
+        JOB_CONTEXT: ${{ toJSON(job) }}
+      run: echo "$JOB_CONTEXT"
+    - name: Dump steps context
+      env:
+        STEPS_CONTEXT: ${{ toJSON(steps) }}
+      run: echo "$STEPS_CONTEXT"
+    - name: Dump runner context
+      env:
+        RUNNER_CONTEXT: ${{ toJSON(runner) }}
+      run: echo "$RUNNER_CONTEXT"
+    - name: Dump strategy context
+      env:
+        STRATEGY_CONTEXT: ${{ toJSON(strategy) }}
+      run: echo "$STRATEGY_CONTEXT"
+    - name: Dump matrix context
+      env:
+        MATRIX_CONTEXT: ${{ toJSON(matrix) }}
+      run: echo "$MATRIX_CONTEXT"
   version:
     runs-on: ubuntu-latest
     outputs:
-      new_version: ${{ steps.tag.outputs.new_version }}
+      new_version: ${{ steps.output.outputs.new_version }}
     steps:
     - uses: actions/checkout@v2.3.4
       with:
@@ -17,10 +46,16 @@ jobs:
         fetch-depth: 0
     - name: Bump version and push tag
       id: tag
+      if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
       uses: mathieudutour/github-tag-action@v5.1
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         release_branches: master,main
+    - id: output
+      env:
+        NEW_VERSION: ${{ steps.tag.outputs.new_version}}
+      run: |
+        echo "::set-output name=new_version::${NEW_VERSION:-$GITHUB_SHA}"
   macos:
     runs-on: macos-latest
     needs: version
@@ -39,16 +74,17 @@ jobs:
       env:
         REVISION: ${{ needs.version.outputs.new_version }}
       run: |
+        set -o xtrace
         ./mvnw \
           --batch-mode \
           -Dsha1="${GITHUB_SHA}" \
           -Drevision="${REVISION}" \
           verify
         mkdir target/artifacts
-        cp target/mvnx-* target/artifacts
+        cp target/${{ env.ARTIFACT }}-* target/artifacts
     - uses: actions/upload-artifact@v2.2.2
       with:
-        name: mvnx-${{ github.job }}-${{ needs.version.outputs.new_version }}
+        name: ${{ env.ARTIFACT }}-${{ github.job }}-${{ needs.version.outputs.new_version }}
         path: target/artifacts
   linux:
     runs-on: ubuntu-latest
@@ -68,16 +104,17 @@ jobs:
       env:
         REVISION: ${{ needs.version.outputs.new_version }}
       run: |
+        set -o xtrace
         ./mvnw \
           --batch-mode \
           -Dsha1="${GITHUB_SHA}" \
           -Drevision="${REVISION}" \
           verify
         mkdir target/artifacts
-        cp target/mvnx-* target/artifacts
+        cp target/${{ env.ARTIFACT }}-* target/artifacts
     - uses: actions/upload-artifact@v2.2.2
       with:
-        name: mvnx-${{ github.job }}-${{ needs.version.outputs.new_version }}
+        name: ${{ env.ARTIFACT }}-${{ github.job }}-${{ needs.version.outputs.new_version }}
         path: target/artifacts
   windows:
     runs-on: windows-latest
@@ -102,12 +139,13 @@ jobs:
       run: |
         call .\mvnw --batch-mode -Dsha1="%GITHUB_SHA%" -Drevision="%REVISION%" verify
         mkdir target\artifacts
-        copy target\mvnx-* target\artifacts
+        copy target\${{ env.ARTIFACT }}-* target\artifacts
     - uses: actions/upload-artifact@v2.2.2
       with:
-        name: mvnx-${{ github.job }}-${{ needs.version.outputs.new_version }}
+        name: ${{ env.ARTIFACT }}-${{ github.job }}-${{ needs.version.outputs.new_version }}
         path: target/artifacts
   release:
+    if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     needs: [version, macos, linux, windows]
     steps:
@@ -119,9 +157,9 @@ jobs:
     - name: Build project
       working-directory: target
       run: |
-        zip -r windows.zip mvnx-windows-${{ needs.version.outputs.new_version }}/
-        zip -r linux.zip mvnx-linux-${{ needs.version.outputs.new_version }}/
-        zip -r macos.zip mvnx-macos-${{ needs.version.outputs.new_version }}/
+        zip -r windows.zip ${{ env.ARTIFACT }}-windows-${{ needs.version.outputs.new_version }}/
+        zip -r linux.zip ${{ env.ARTIFACT }}-linux-${{ needs.version.outputs.new_version }}/
+        zip -r macos.zip ${{ env.ARTIFACT }}-macos-${{ needs.version.outputs.new_version }}/
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -139,7 +177,7 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./target/linux.zip
-        asset_name: mvnx-linux-${{ needs.version.outputs.new_version }}.zip
+        asset_name: ${{ env.ARTIFACT }}-linux-${{ needs.version.outputs.new_version }}.zip
         asset_content_type: application/zip
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
@@ -148,7 +186,7 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./target/windows.zip
-        asset_name: mvnx-windows-${{ needs.version.outputs.new_version }}.zip
+        asset_name: ${{ env.ARTIFACT }}-windows-${{ needs.version.outputs.new_version }}.zip
         asset_content_type: application/zip
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
@@ -157,7 +195,7 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./target/macos.zip
-        asset_name: mvnx-macos-${{ needs.version.outputs.new_version }}.zip
+        asset_name: ${{ env.ARTIFACT }}-macos-${{ needs.version.outputs.new_version }}.zip
         asset_content_type: application/zip
     - uses: eregon/publish-release@v1
       env:
@@ -165,7 +203,8 @@ jobs:
       with:
         release_id: ${{ steps.create_release.outputs.id }}
   deploy:
-    needs: [version, release]
+    needs: [version, macos, linux, windows]
+    if: ${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/dependabot/') }}
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2.3.4
