@@ -83,7 +83,7 @@ jobs:
           verify
         mkdir target/artifacts
         cp target/${{ env.ARTIFACT }}-* target/artifacts
-    - uses: actions/upload-artifact@v2.2.3
+    - uses: actions/upload-artifact@v2.2.4
       with:
         name: ${{ env.ARTIFACT }}-${{ github.job }}-${{ needs.version.outputs.new_version }}
         path: target/artifacts
@@ -114,7 +114,7 @@ jobs:
           verify
         mkdir target/artifacts
         cp target/${{ env.ARTIFACT }}-* target/artifacts
-    - uses: actions/upload-artifact@v2.2.3
+    - uses: actions/upload-artifact@v2.2.4
       with:
         name: ${{ env.ARTIFACT }}-${{ github.job }}-${{ needs.version.outputs.new_version }}
         path: target/artifacts
@@ -143,7 +143,7 @@ jobs:
         call .\mvnw --batch-mode -Dsha1="%GITHUB_SHA%" -Drevision="%REVISION%" verify
         mkdir target\artifacts
         copy target\${{ env.ARTIFACT }}-* target\artifacts
-    - uses: actions/upload-artifact@v2.2.3
+    - uses: actions/upload-artifact@v2.2.4
       with:
         name: ${{ env.ARTIFACT }}-${{ github.job }}-${{ needs.version.outputs.new_version }}
         path: target/artifacts
