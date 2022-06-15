@@ -49,7 +49,8 @@ public class MavenExecutor {
 		mavenExecutor.execute();
 	}
 
-	private static final Pattern PROPERTIES_TOKEN = Pattern.compile("\\$\\{([\\w.-]+)\\}");
+	private static final Pattern PROPERTIES_TOKEN = Pattern
+			.compile("\\$\\{([\\w.-]+)\\}");
 	private static final long TIMEOUT_MS = 10_000;
 
 	Maven maven = new Maven();
@@ -80,7 +81,8 @@ public class MavenExecutor {
 				maven.localRepository = Paths.get(arguments[++i]);
 				break;
 			case "--":
-				passthroughArguments = Arrays.copyOfRange(arguments, i + 1, arguments.length);
+				passthroughArguments = Arrays
+						.copyOfRange(arguments, i + 1, arguments.length);
 				i = arguments.length;
 				break;
 			case "--saveToLocalRepository":
@@ -91,29 +93,42 @@ public class MavenExecutor {
 			}
 		}
 		if (maven.localRepository == null) {
-			maven.localRepository = maven.localRepository(maven.userHomeM2, maven.settingsXml);
+			maven.localRepository = maven
+					.localRepository(maven.userHomeM2, maven.settingsXml);
 		}
 		return this;
 	}
 
 	public static boolean classPathFilter(Artifact artifact) {
-		return !(artifact.packaging.equals("pom") || "test".equals(artifact.scope) || "provided".equals(artifact.scope)
-				|| artifact.optional);
+		return !(artifact.packaging.equals("pom")
+				|| "test".equals(artifact.scope)
+				|| "provided".equals(artifact.scope) || artifact.optional);
 	}
 
 	public void execute() throws Exception {
-		maven.resolve(artifact, Collections.emptyList(), MavenExecutor::classPathFilter);
+		maven.resolve(
+				artifact,
+				Collections.emptyList(),
+				MavenExecutor::classPathFilter
+		);
 		if (mainClass == null) {
 			mainClass = artifact.properties.get("mainClass");
 		}
-		URL[] jars = getJarUrls(artifact.dependencies(MavenExecutor::classPathFilter));
+		URL[] jars = getJarUrls(
+				artifact.dependencies(MavenExecutor::classPathFilter)
+		);
 		URLClassLoader classLoader = new URLClassLoader(jars);
 		Class<?> classToLoad = Class.forName(mainClass, true, classLoader);
-		classToLoad.getMethod("main", new Class[] { passthroughArguments.getClass() }).invoke(null,
-				new Object[] { passthroughArguments });
+		classToLoad
+				.getMethod(
+						"main",
+						new Class[] { passthroughArguments.getClass() }
+				)
+				.invoke(null, new Object[] { passthroughArguments });
 	}
 
-	public URL[] getJarUrls(Collection<Artifact> dependencies) throws Exception {
+	public URL[] getJarUrls(Collection<Artifact> dependencies)
+			throws Exception {
 		List<URL> result = new ArrayList<>();
 		for (Artifact dependency : dependencies) {
 			result.add(maven.uri(dependency, dependency.packaging).toURL());
@@ -123,21 +138,29 @@ public class MavenExecutor {
 
 	public static class Maven {
 
-		Path userHomeM2 = userHomeM2(Paths.get(System.getProperty("user.home")));
+		Path userHomeM2 = userHomeM2(
+				Paths.get(System.getProperty("user.home"))
+		);
 		Path settingsXml = settingsXml(userHomeM2);
 		Path localRepository;
 		boolean saveToLocalRepository = false;
-		Collection<String> repositories = List.of("https://repo.maven.apache.org/maven2/", "https://jitpack.io/");
+		Collection<String> repositories = List.of(
+				"https://repo.maven.apache.org/maven2/",
+				"https://jitpack.io/"
+		);
 
 		private DocumentBuilder documentBuilder;
 
 		public Document xmlDocument(URI uri) {
 			try {
 				if (documentBuilder == null) {
-					documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+					documentBuilder = DocumentBuilderFactory.newInstance()
+							.newDocumentBuilder();
 				}
-				return documentBuilder.parse(new InputSource(uri.toASCIIString()));
-			} catch (SAXException | ParserConfigurationException | IOException e) {
+				return documentBuilder
+						.parse(new InputSource(uri.toASCIIString()));
+			} catch (SAXException | ParserConfigurationException
+					| IOException e) {
 				throw new IllegalStateException(e);
 			}
 		}
@@ -175,19 +198,31 @@ public class MavenExecutor {
 
 		public URI uri(String remote, Path path, Path absolutePath) {
 			try {
-				URI uri = URI.create(remote).resolve(path.toString().replace('\\', '/'));
-				HttpClient httpClient = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
-				Builder requestBuilder = HttpRequest.newBuilder().uri(uri).timeout(Duration.ofMillis(TIMEOUT_MS));
+				URI uri = URI.create(remote)
+						.resolve(path.toString().replace('\\', '/'));
+				HttpClient httpClient = HttpClient.newBuilder()
+						.followRedirects(HttpClient.Redirect.NORMAL)
+						.build();
+				Builder requestBuilder = HttpRequest.newBuilder()
+						.uri(uri)
+						.timeout(Duration.ofMillis(TIMEOUT_MS));
 				if (saveToLocalRepository) {
 					Files.createDirectories(absolutePath.getParent());
-					HttpResponse<Path> response = httpClient.send(requestBuilder.build(),
-							HttpResponse.BodyHandlers.ofFile(absolutePath));
+					HttpResponse<Path> response = httpClient.send(
+							requestBuilder.build(),
+							HttpResponse.BodyHandlers.ofFile(absolutePath)
+					);
 					if (response.statusCode() == 200) {
 						return response.body().toUri();
 					}
 				} else {
-					HttpRequest request = requestBuilder.method("HEAD", BodyPublishers.noBody()).build();
-					HttpResponse<Void> response = httpClient.send(request, HttpResponse.BodyHandlers.discarding());
+					HttpRequest request = requestBuilder
+							.method("HEAD", BodyPublishers.noBody())
+							.build();
+					HttpResponse<Void> response = httpClient.send(
+							request,
+							HttpResponse.BodyHandlers.discarding()
+					);
 					if (response.statusCode() == 200) {
 						return uri;
 					}
@@ -200,23 +235,34 @@ public class MavenExecutor {
 
 		public Path localRepository(Path userHomeM2, Path settingsXml) {
 			if (Files.exists(settingsXml)) {
-				NodeList elements = xmlDocument(settingsXml.toUri()).getElementsByTagName("localRepository");
-				if (elements.getLength() > 0 && !elements.item(0).getTextContent().isBlank()) {
-					return Paths.get(template(elements.item(0).getTextContent(),
-							Maven::lookupSystemPropertyOrEnvironmentVariable));
+				NodeList elements = xmlDocument(settingsXml.toUri())
+						.getElementsByTagName("localRepository");
+				if (elements.getLength() > 0
+						&& !elements.item(0).getTextContent().isBlank()) {
+					return Paths.get(
+							template(
+									elements.item(0).getTextContent(),
+									Maven::lookupSystemPropertyOrEnvironmentVariable
+							)
+					);
 				}
 			}
 			return userHomeM2.resolve("repository");
 		}
 
-		public void resolve(Artifact artifact, List<Artifact> artifacts, Predicate<Artifact> filter) {
+		public void resolve(
+				Artifact artifact,
+				List<Artifact> artifacts,
+				Predicate<Artifact> filter
+		) {
 			List<Artifact> artifactHierarchy = new ArrayList<>(artifacts);
 			artifactHierarchy.add(artifact);
 
 			Document xmlDocument = pom(artifact);
 			Element projectElement = xmlDocument.getDocumentElement();
 
-			for (int i = 0; i < projectElement.getChildNodes().getLength(); i++) {
+			for (int i = 0; i < projectElement.getChildNodes()
+					.getLength(); i++) {
 				Node item = projectElement.getChildNodes().item(i);
 				switch (item.getNodeName()) {
 				case "parent":
@@ -226,7 +272,8 @@ public class MavenExecutor {
 					artifact.parent = parent;
 					if (artifact.version == null) {
 						artifact.version = artifact.parent.version;
-						artifact.properties.put("project.version", artifact.version);
+						artifact.properties
+								.put("project.version", artifact.version);
 					}
 					if (artifact.groupId == null) {
 						artifact.groupId = artifact.parent.groupId;
@@ -240,7 +287,8 @@ public class MavenExecutor {
 					break;
 				case "version":
 					artifact.version = item.getTextContent();
-					artifact.properties.put("project.version", artifact.version);
+					artifact.properties
+							.put("project.version", artifact.version);
 					break;
 				case "packaging":
 					artifact.packaging = item.getTextContent();
@@ -251,18 +299,28 @@ public class MavenExecutor {
 						Node propertyNode = propertyNodes.item(j);
 						if (propertyNode.getNodeType() == Node.ELEMENT_NODE) {
 							Element propertyElement = (Element) propertyNode;
-							artifact.properties.put(propertyElement.getTagName(), propertyElement.getTextContent());
+							artifact.properties.put(
+									propertyElement.getTagName(),
+									propertyElement.getTextContent()
+							);
 						}
 					}
 					break;
 				case "dependencyManagement":
-					NodeList dependencyElements = ((Element) item).getElementsByTagName("dependency");
+					NodeList dependencyElements = ((Element) item)
+							.getElementsByTagName("dependency");
 					for (int j = 0; j < dependencyElements.getLength(); j++) {
-						Artifact dependency = artifactFromNode(dependencyElements.item(j));
-						resolveProperties(dependency, key -> lookupProperty(key, artifactHierarchy));
+						Artifact dependency = artifactFromNode(
+								dependencyElements.item(j)
+						);
+						resolveProperties(
+								dependency,
+								key -> lookupProperty(key, artifactHierarchy)
+						);
 						if ("import".equals(dependency.scope)) {
 							resolve(dependency, artifactHierarchy, filter);
-							artifact.dependencyManagement.addAll(dependency.dependencyManagement);
+							artifact.dependencyManagement
+									.addAll(dependency.dependencyManagement);
 						} else {
 							artifact.dependencyManagement.add(dependency);
 						}
@@ -273,7 +331,9 @@ public class MavenExecutor {
 					for (int j = 0; j < dependencyNodes.getLength(); j++) {
 						Node dependencyNode = dependencyNodes.item(j);
 						if (dependencyNode.getNodeType() == Node.ELEMENT_NODE) {
-							Artifact dependency = artifactFromNode(dependencyNode);
+							Artifact dependency = artifactFromNode(
+									dependencyNode
+							);
 							artifact.dependencies.add(dependency);
 						}
 					}
@@ -283,7 +343,10 @@ public class MavenExecutor {
 
 			for (Artifact dependency : artifact.dependencies) {
 				if (filter.test(dependency)) {
-					resolveProperties(dependency, key -> lookupProperty(key, artifactHierarchy));
+					resolveProperties(
+							dependency,
+							key -> lookupProperty(key, artifactHierarchy)
+					);
 					if (filter.test(dependency)) {
 						manage(dependency, artifactHierarchy);
 						if (filter.test(dependency)) {
@@ -294,13 +357,22 @@ public class MavenExecutor {
 			}
 		}
 
-		public static void manage(Artifact artifact, List<Artifact> dependents) {
+		public static void manage(
+				Artifact artifact,
+				List<Artifact> dependents
+		) {
 			String version = null;
 			String scope = null;
-			List<Artifact> dependencies = dependents.stream().flatMap(dependent -> dependent.hierarchy().stream())
-					.flatMap(dependent -> Stream.concat(dependent.dependencies.stream(),
-							dependent.dependencyManagement.stream()))
-					.filter(artifact::equalsArtifact).collect(Collectors.toList());
+			List<Artifact> dependencies = dependents.stream()
+					.flatMap(dependent -> dependent.hierarchy().stream())
+					.flatMap(
+							dependent -> Stream.concat(
+									dependent.dependencies.stream(),
+									dependent.dependencyManagement.stream()
+							)
+					)
+					.filter(artifact::equalsArtifact)
+					.collect(Collectors.toList());
 			for (Artifact dependency : dependencies) {
 				if (version == null) {
 					version = dependency.version;
@@ -329,19 +401,29 @@ public class MavenExecutor {
 			return userHomeM2.resolve("settings.xml");
 		}
 
-		public static String lookupSystemPropertyOrEnvironmentVariable(String key) {
+		public static String lookupSystemPropertyOrEnvironmentVariable(
+				String key
+		) {
 			return Optional.ofNullable(System.getProperty(key))
-					.orElseGet(() -> System.getenv(key.substring("env.".length())));
+					.orElseGet(
+							() -> System.getenv(key.substring("env.".length()))
+					);
 		}
 
-		public static String lookupProperty(String key, List<Artifact> artifacts) {
+		public static String lookupProperty(
+				String key,
+				List<Artifact> artifacts
+		) {
 			for (Artifact artifact : artifacts) {
 				String value = artifact.properties.get(key);
 				if (value != null) {
 					return value;
 				}
 				if (artifact.parent != null) {
-					value = lookupProperty(key, Collections.singletonList(artifact.parent));
+					value = lookupProperty(
+							key,
+							Collections.singletonList(artifact.parent)
+					);
 					if (value != null) {
 						return value;
 					}
@@ -350,7 +432,10 @@ public class MavenExecutor {
 			return lookupSystemPropertyOrEnvironmentVariable(key);
 		}
 
-		public static void resolveProperties(Artifact artifact, Function<String, String> lookupFunction) {
+		public static void resolveProperties(
+				Artifact artifact,
+				Function<String, String> lookupFunction
+		) {
 			artifact.groupId = template(artifact.groupId, lookupFunction);
 			artifact.artifactId = template(artifact.artifactId, lookupFunction);
 			artifact.version = template(artifact.version, lookupFunction);
@@ -359,7 +444,10 @@ public class MavenExecutor {
 			artifact.scope = template(artifact.scope, lookupFunction);
 		}
 
-		public static String template(String text, Function<String, String> lookupFunction) {
+		public static String template(
+				String text,
+				Function<String, String> lookupFunction
+		) {
 			if (text == null) {
 				return text;
 			}
@@ -413,7 +501,8 @@ public class MavenExecutor {
 					artifact.packaging = item.getTextContent();
 					break;
 				case "optional":
-					artifact.optional = Boolean.parseBoolean(item.getTextContent());
+					artifact.optional = Boolean
+							.parseBoolean(item.getTextContent());
 					break;
 				}
 			}
@@ -421,9 +510,13 @@ public class MavenExecutor {
 		}
 
 		public static Path path(Artifact dependency, String extension) {
-			return Paths.get(dependency.groupId.replace(".", "/")).resolve(dependency.artifactId)
+			return Paths.get(dependency.groupId.replace(".", "/"))
+					.resolve(dependency.artifactId)
 					.resolve(dependency.version)
-					.resolve(dependency.artifactId + "-" + dependency.version + "." + extension);
+					.resolve(
+							dependency.artifactId + "-" + dependency.version
+									+ "." + extension
+					);
 		}
 
 	}
@@ -469,13 +562,16 @@ public class MavenExecutor {
 		}
 
 		public boolean equalsArtifact(Artifact other) {
-			return Objects.equals(artifactId, other.artifactId) && Objects.equals(classifier, other.classifier)
-					&& Objects.equals(groupId, other.groupId) && Objects.equals(packaging, other.packaging);
+			return Objects.equals(artifactId, other.artifactId)
+					&& Objects.equals(classifier, other.classifier)
+					&& Objects.equals(groupId, other.groupId)
+					&& Objects.equals(packaging, other.packaging);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(artifactId, classifier, groupId, packaging, version);
+			return Objects
+					.hash(artifactId, classifier, groupId, packaging, version);
 		}
 
 		@Override
@@ -490,15 +586,19 @@ public class MavenExecutor {
 				return false;
 			}
 			Artifact other = (Artifact) obj;
-			return Objects.equals(artifactId, other.artifactId) && Objects.equals(classifier, other.classifier)
-					&& Objects.equals(groupId, other.groupId) && Objects.equals(packaging, other.packaging)
+			return Objects.equals(artifactId, other.artifactId)
+					&& Objects.equals(classifier, other.classifier)
+					&& Objects.equals(groupId, other.groupId)
+					&& Objects.equals(packaging, other.packaging)
 					&& Objects.equals(version, other.version);
 		}
 
 		@Override
 		public String toString() {
-			return "Dependency [groupId=" + groupId + ", artifactId=" + artifactId + ", version=" + version
-					+ ", packaging=" + packaging + ", classifier=" + classifier + ", scope=" + scope + "]";
+			return "Dependency [groupId=" + groupId + ", artifactId="
+					+ artifactId + ", version=" + version + ", packaging="
+					+ packaging + ", classifier=" + classifier + ", scope="
+					+ scope + "]";
 		}
 
 	}
