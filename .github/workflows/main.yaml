@@ -133,9 +133,8 @@ jobs:
         distribution: adopt
         cache: 'maven'
     - name: Build with Maven
-      shell: cmd
       run: |
-        call .\mvnw --batch-mode -Dsha1="%GITHUB_SHA%" -Drevision="%REVISION%" verify
+        .\mvnw --batch-mode -Dsha1="$env:GITHUB_SHA" -Drevision="$env:REVISION" verify
     - name: Move artifacts
       run: |
         mkdir target/artifacts
