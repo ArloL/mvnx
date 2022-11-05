@@ -69,7 +69,7 @@ jobs:
     - uses: actions/setup-java@v3.6.0
       with:
         java-version: ${{ env.JAVA_VERSION }}
-        distribution: adopt
+        distribution: temurin
         cache: 'maven'
     - name: Build with Maven
       run: |
@@ -99,7 +99,7 @@ jobs:
     - uses: actions/setup-java@v3.6.0
       with:
         java-version: ${{ env.JAVA_VERSION }}
-        distribution: adopt
+        distribution: temurin
         cache: 'maven'
     - name: Build with Maven
       run: |
@@ -130,7 +130,7 @@ jobs:
     - uses: actions/setup-java@v3.6.0
       with:
         java-version: ${{ env.JAVA_VERSION }}
-        distribution: adopt
+        distribution: temurin
         cache: 'maven'
     - name: Build with Maven
       run: |
@@ -214,7 +214,7 @@ jobs:
     - uses: actions/setup-java@v3.6.0
       with:
         java-version: ${{ env.JAVA_VERSION }}
-        distribution: adopt
+        distribution: temurin
         cache: 'maven'
     - name: Publish to GitHub Packages Apache Maven
       env:
