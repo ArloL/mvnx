@@ -15,10 +15,10 @@
 	<version>${revision}</version>
 
 	<scm>
-		<connection>scm:git:https://github.com/ArloL/mvnx.git</connection>
-		<developerConnection>scm:git:https://github.com/ArloL/mvnx.git</developerConnection>
+		<connection>scm:git:https://github.com/ArloL/mvnx</connection>
+		<developerConnection>scm:git:https://github.com/ArloL/mvnx</developerConnection>
 		<tag>${sha1}</tag>
-		<url>https://github.com/ArloL/mvnx/</url>
+		<url>https://github.com/ArloL/mvnx</url>
 	</scm>
 
 	<licenses>
