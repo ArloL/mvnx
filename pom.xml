@@ -32,7 +32,7 @@
 		<java.version>17</java.version>
 		<sha1>HEAD</sha1>
 		<revision>0.0.1-SNAPSHOT</revision>
-		<mainClass>io.github.arlol.mvnx.MavenExecutor</mainClass>
+		<start-class>io.github.arlol.mvnx.MavenExecutor</start-class>
 	</properties>
 
 	<build>
@@ -97,17 +97,7 @@
 					</execution>
 				</executions>
 			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<configuration>
-					<archive>
-						<manifest>
-							<mainClass>${mainClass}</mainClass>
-						</manifest>
-					</archive>
-				</configuration>
-			</plugin>
+			
 			<plugin>
 				<groupId>com.github.iarellano</groupId>
 				<artifactId>replacer</artifactId>
