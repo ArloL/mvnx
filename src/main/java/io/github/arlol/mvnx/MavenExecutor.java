@@ -41,6 +41,8 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 public class MavenExecutor {
 
 	public static void main(String[] args) throws Exception {
@@ -105,6 +107,7 @@ public class MavenExecutor {
 				|| "provided".equals(artifact.scope) || artifact.optional);
 	}
 
+	@SuppressFBWarnings("DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED")
 	public void execute() throws Exception {
 		maven.resolve(
 				artifact,
@@ -207,7 +210,10 @@ public class MavenExecutor {
 						.uri(uri)
 						.timeout(Duration.ofMillis(TIMEOUT_MS));
 				if (saveToLocalRepository) {
-					Files.createDirectories(absolutePath.getParent());
+					Path parent = absolutePath.getParent();
+					if (parent != null) {
+						Files.createDirectories(parent);
+					}
 					HttpResponse<Path> response = httpClient.send(
 							requestBuilder.build(),
 							HttpResponse.BodyHandlers.ofFile(absolutePath)
@@ -510,6 +516,9 @@ public class MavenExecutor {
 		}
 
 		public static Path path(Artifact dependency, String extension) {
+			if (dependency.groupId == null) {
+				throw new IllegalStateException("groupId is null");
+			}
 			return Paths.get(dependency.groupId.replace(".", "/"))
 					.resolve(dependency.artifactId)
 					.resolve(dependency.version)
