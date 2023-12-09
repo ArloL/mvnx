@@ -510,6 +510,8 @@ public class MavenExecutor {
 					artifact.optional = Boolean
 							.parseBoolean(item.getTextContent());
 					break;
+				default:
+					// ignore
 				}
 			}
 			return artifact;
