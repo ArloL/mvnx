@@ -6,7 +6,7 @@ on:
   - cron: '9 6 16 * *'
 env:
   ARTIFACT: mvnx
-  JAVA_VERSION: 17
+  JAVA_VERSION: 21
 
 jobs:
   debug:
