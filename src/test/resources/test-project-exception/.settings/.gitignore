@@ -1,3 +1,7 @@
+# Created by chorito https://github.com/ArloL/chorito
+
 *.prefs
 !org.eclipse.jdt.core.prefs
 !org.eclipse.jdt.ui.prefs
+
+# End of chorito. Add your ignores after this line and they will be preserved.
