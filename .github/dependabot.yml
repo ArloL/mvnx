@@ -1,18 +1,18 @@
 version: 2
 updates:
-  - package-ecosystem: "maven"
-    directory: "/"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "maven"
-    directory: "/src/test/resources/test-project-exception/"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "maven"
-    directory: "/src/test/resources/test-project-print/"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "daily"
+- package-ecosystem: "maven"
+  directory: "/"
+  schedule:
+    interval: "daily"
+- package-ecosystem: "maven"
+  directory: "/src/test/resources/test-project-exception/"
+  schedule:
+    interval: "daily"
+- package-ecosystem: "maven"
+  directory: "/src/test/resources/test-project-print/"
+  schedule:
+    interval: "daily"
+- package-ecosystem: "github-actions"
+  directory: "/"
+  schedule:
+    interval: "daily"
