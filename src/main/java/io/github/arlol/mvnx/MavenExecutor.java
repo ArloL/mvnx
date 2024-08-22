@@ -117,6 +117,9 @@ public class MavenExecutor {
 		if (mainClass == null) {
 			mainClass = artifact.properties.get("mainClass");
 		}
+		if (mainClass == null) {
+			mainClass = artifact.properties.get("start-class");
+		}
 		URL[] jars = getJarUrls(
 				artifact.dependencies(MavenExecutor::classPathFilter)
 		);
