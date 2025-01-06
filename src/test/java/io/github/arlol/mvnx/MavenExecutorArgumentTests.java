@@ -3,7 +3,7 @@ package io.github.arlol.mvnx;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.nio.file.Paths;
+import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
 
@@ -48,7 +48,7 @@ public class MavenExecutorArgumentTests {
 						"--localRepository", localRepository }
 		);
 		assertThat(executor.maven.localRepository)
-				.isEqualTo(Paths.get(localRepository));
+				.isEqualTo(Path.of(localRepository));
 	}
 
 	@Test
@@ -68,7 +68,7 @@ public class MavenExecutorArgumentTests {
 				new String[] { "com.github.ArloL:newlinechecker:133576b455",
 						"--settings", settings }
 		);
-		assertThat(executor.maven.settingsXml).isEqualTo(Paths.get(settings));
+		assertThat(executor.maven.settingsXml).isEqualTo(Path.of(settings));
 	}
 
 	@Test

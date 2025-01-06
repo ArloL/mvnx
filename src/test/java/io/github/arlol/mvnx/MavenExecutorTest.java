@@ -3,7 +3,6 @@ package io.github.arlol.mvnx;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -19,24 +18,24 @@ public class MavenExecutorTest {
 
 	@Test
 	public void testUserHomeM2() {
-		Path userHomeM2 = MavenExecutor.Maven.userHomeM2(Paths.get("/root"));
-		assertThat(userHomeM2).isEqualByComparingTo(Paths.get("/root/.m2"));
+		Path userHomeM2 = MavenExecutor.Maven.userHomeM2(Path.of("/root"));
+		assertThat(userHomeM2).isEqualByComparingTo(Path.of("/root/.m2"));
 	}
 
 	@Test
 	public void testSettingsXml() {
 		Path settingsXml = MavenExecutor.Maven
-				.settingsXml(Paths.get("/root/.m2"));
+				.settingsXml(Path.of("/root/.m2"));
 		assertThat(settingsXml)
-				.isEqualByComparingTo(Paths.get("/root/.m2/settings.xml"));
+				.isEqualByComparingTo(Path.of("/root/.m2/settings.xml"));
 	}
 
 	@Test
 	public void testLocalRepositoryNoSettingsXml() throws Exception {
-		Path settingsXml = Paths.get("THIS-FILE-DOES-NOT-EXIST.xml");
+		Path settingsXml = Path.of("THIS-FILE-DOES-NOT-EXIST.xml");
 		Path localRepository = localRepository(settingsXml);
 		assertThat(localRepository)
-				.isEqualByComparingTo(Paths.get("/root/.m2/repository"));
+				.isEqualByComparingTo(Path.of("/root/.m2/repository"));
 	}
 
 	@Test
@@ -45,7 +44,7 @@ public class MavenExecutorTest {
 				.get("maven-settings-local-repository-empty.xml");
 		Path localRepository = localRepository(settingsXml);
 		assertThat(localRepository)
-				.isEqualByComparingTo(Paths.get("/root/.m2/repository"));
+				.isEqualByComparingTo(Path.of("/root/.m2/repository"));
 	}
 
 	@Test
@@ -54,7 +53,7 @@ public class MavenExecutorTest {
 				.get("maven-settings-local-repository-not-set.xml");
 		Path localRepository = localRepository(settingsXml);
 		assertThat(localRepository)
-				.isEqualByComparingTo(Paths.get("/root/.m2/repository"));
+				.isEqualByComparingTo(Path.of("/root/.m2/repository"));
 	}
 
 	@Test
@@ -63,7 +62,7 @@ public class MavenExecutorTest {
 				.get("maven-settings-local-repository-path.xml");
 		Path localRepository = localRepository(settingsXml);
 		assertThat(localRepository)
-				.isEqualByComparingTo(Paths.get("/explicitpath"));
+				.isEqualByComparingTo(Path.of("/explicitpath"));
 	}
 
 	@Test
@@ -75,7 +74,7 @@ public class MavenExecutorTest {
 		);
 		Path localRepository = localRepository(settingsXml);
 		assertThat(localRepository).isEqualByComparingTo(
-				Paths.get("/home").resolve(getenv).resolve(".m2/repository")
+				Path.of("/home").resolve(getenv).resolve(".m2/repository")
 		);
 	}
 
@@ -89,13 +88,13 @@ public class MavenExecutorTest {
 				.get("maven-settings-local-repository-system-property.xml");
 		Path localRepository = localRepository(settingsXml);
 		assertThat(localRepository).isEqualByComparingTo(
-				Paths.get("averyspecificsystempropertyvalue/.m2/repository")
+				Path.of("averyspecificsystempropertyvalue/.m2/repository")
 		);
 	}
 
 	private Path localRepository(Path settingsXml) {
 		return new MavenExecutor.Maven()
-				.localRepository(Paths.get("/root/.m2"), settingsXml);
+				.localRepository(Path.of("/root/.m2"), settingsXml);
 	}
 
 	@Test

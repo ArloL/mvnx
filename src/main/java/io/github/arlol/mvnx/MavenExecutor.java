@@ -11,7 +11,6 @@ import java.net.http.HttpRequest.Builder;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -77,10 +76,10 @@ public class MavenExecutor {
 				mainClass = arguments[++i];
 				break;
 			case "--settings":
-				maven.settingsXml = Paths.get(arguments[++i]);
+				maven.settingsXml = Path.of(arguments[++i]);
 				break;
 			case "--localRepository":
-				maven.localRepository = Paths.get(arguments[++i]);
+				maven.localRepository = Path.of(arguments[++i]);
 				break;
 			case "--":
 				passthroughArguments = Arrays
@@ -144,9 +143,7 @@ public class MavenExecutor {
 
 	public static class Maven {
 
-		Path userHomeM2 = userHomeM2(
-				Paths.get(System.getProperty("user.home"))
-		);
+		Path userHomeM2 = userHomeM2(Path.of(System.getProperty("user.home")));
 		Path settingsXml = settingsXml(userHomeM2);
 		Path localRepository;
 		boolean saveToLocalRepository = false;
@@ -248,7 +245,7 @@ public class MavenExecutor {
 						.getElementsByTagName("localRepository");
 				if (elements.getLength() > 0
 						&& !elements.item(0).getTextContent().isBlank()) {
-					return Paths.get(
+					return Path.of(
 							template(
 									elements.item(0).getTextContent(),
 									Maven::lookupSystemPropertyOrEnvironmentVariable
@@ -524,7 +521,7 @@ public class MavenExecutor {
 			if (dependency.groupId == null) {
 				throw new IllegalStateException("groupId is null");
 			}
-			return Paths.get(dependency.groupId.replace(".", "/"))
+			return Path.of(dependency.groupId.replace(".", "/"))
 					.resolve(dependency.artifactId)
 					.resolve(dependency.version)
 					.resolve(
