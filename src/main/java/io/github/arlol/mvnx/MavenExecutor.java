@@ -2,6 +2,7 @@ package io.github.arlol.mvnx;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -46,7 +47,9 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 public class MavenExecutor {
 
-	public static void main(String[] args) throws Exception {
+	public static void main(String[] args) throws ClassNotFoundException,
+			IllegalAccessException, InvocationTargetException,
+			NoSuchMethodException, SecurityException {
 		MavenExecutor mavenExecutor = new MavenExecutor();
 		mavenExecutor.parseArguments(args);
 		mavenExecutor.execute();
@@ -109,7 +112,9 @@ public class MavenExecutor {
 	}
 
 	@SuppressFBWarnings("DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED")
-	public void execute() throws Exception {
+	public void execute() throws ClassNotFoundException, IllegalAccessException,
+			InvocationTargetException, NoSuchMethodException,
+			SecurityException {
 		maven.resolve(
 				artifact,
 				Collections.emptyList(),
