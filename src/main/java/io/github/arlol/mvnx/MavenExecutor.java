@@ -1,6 +1,8 @@
 package io.github.arlol.mvnx;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -132,13 +134,17 @@ public class MavenExecutor {
 				.invoke(null, new Object[] { passthroughArguments });
 	}
 
-	public URL[] getJarUrls(Collection<Artifact> dependencies)
-			throws Exception {
-		List<URL> result = new ArrayList<>();
-		for (Artifact dependency : dependencies) {
-			result.add(maven.uri(dependency, dependency.packaging).toURL());
-		}
-		return result.toArray(URL[]::new);
+	public URL[] getJarUrls(Collection<Artifact> dependencies) {
+		return dependencies.stream()
+				.map(dependency -> maven.uri(dependency, dependency.packaging))
+				.map(uri -> {
+					try {
+						return uri.toURL();
+					} catch (MalformedURLException e) {
+						throw new UncheckedIOException(e);
+					}
+				})
+				.toArray(URL[]::new);
 	}
 
 	public static class Maven {
