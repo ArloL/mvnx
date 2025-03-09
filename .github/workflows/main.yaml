@@ -40,9 +40,9 @@ jobs:
     - name: Dump environment variables
       run: set
   version:
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-    runs-on: ubuntu-latest
     outputs:
       new_version: ${{ steps.output.outputs.new_version }}
       build_timestamp: ${{ steps.output.outputs.build_timestamp }}
@@ -63,8 +63,8 @@ jobs:
     - name: Make sure build did not change anything
       run: git diff --exit-code
   macos:
-    runs-on: macos-latest
     needs: version
+    runs-on: macos-latest
     env:
       REVISION: ${{ needs.version.outputs.new_version }}
       BUILD_TIMESTAMP: ${{ needs.version.outputs.build_timestamp }}
@@ -96,8 +96,8 @@ jobs:
     - name: Make sure build did not change anything
       run: git diff --exit-code
   linux:
-    runs-on: ubuntu-latest
     needs: version
+    runs-on: ubuntu-latest
     env:
       REVISION: ${{ needs.version.outputs.new_version }}
       BUILD_TIMESTAMP: ${{ needs.version.outputs.build_timestamp }}
@@ -129,8 +129,8 @@ jobs:
     - name: Make sure build did not change anything
       run: git diff --exit-code
   windows:
-    runs-on: windows-latest
     needs: version
+    runs-on: windows-latest
     env:
       USER: runner
       REVISION: ${{ needs.version.outputs.new_version }}
@@ -158,9 +158,9 @@ jobs:
     - name: Make sure build did not change anything
       run: git diff --exit-code
   release:
+    needs: [version, macos, linux, windows]
     if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
-    needs: [version, macos, linux, windows]
     permissions:
       contents: write
     steps:
