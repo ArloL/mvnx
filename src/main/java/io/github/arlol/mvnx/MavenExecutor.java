@@ -111,7 +111,6 @@ public class MavenExecutor {
 				|| "provided".equals(artifact.scope) || artifact.optional);
 	}
 
-	@SuppressFBWarnings("DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED")
 	public void execute() throws ClassNotFoundException, IllegalAccessException,
 			InvocationTargetException, NoSuchMethodException,
 			SecurityException {
