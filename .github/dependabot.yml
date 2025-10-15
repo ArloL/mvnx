@@ -4,15 +4,23 @@ updates:
   directory: "/"
   schedule:
     interval: "monthly"
+  cooldown:
+    default-days: 4
 - package-ecosystem: "maven"
   directory: "/src/test/resources/test-project-exception/"
   schedule:
     interval: "monthly"
+  cooldown:
+    default-days: 4
 - package-ecosystem: "maven"
   directory: "/src/test/resources/test-project-print/"
   schedule:
     interval: "monthly"
+  cooldown:
+    default-days: 4
 - package-ecosystem: "github-actions"
   directory: "/"
   schedule:
     interval: "monthly"
+  cooldown:
+    default-days: 4
