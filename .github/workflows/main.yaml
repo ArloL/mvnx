@@ -158,7 +158,11 @@ jobs:
     - name: Make sure build did not change anything
       run: git diff --exit-code
   release:
-    needs: [version, macos, linux, windows]
+    needs:
+    - version
+    - macos
+    - linux
+    - windows
     if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
@@ -218,7 +222,11 @@ jobs:
     - name: Make sure build did not change anything
       run: git diff --exit-code
   deploy:
-    needs: [version, macos, linux, windows]
+    needs:
+    - version
+    - macos
+    - linux
+    - windows
     if: ${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/dependabot/') }}
     runs-on: ubuntu-latest
     permissions:
