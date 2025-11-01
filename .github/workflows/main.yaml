@@ -3,7 +3,7 @@ name: Main
 on:
   push:
   schedule:
-  - cron: '9 6 16 * *'
+  - cron: "9 6 16 * *"
 permissions: {}
 env:
   ARTIFACT: mvnx
