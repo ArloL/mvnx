@@ -183,37 +183,37 @@ jobs:
       id: create_release
       uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1.20.0
       with:
-        tag: v${{ needs.version.outputs.new_version }}
-        name: Release ${{ needs.version.outputs.new_version }}
         draft: true
+        name: Release ${{ needs.version.outputs.new_version }}
+        tag: v${{ needs.version.outputs.new_version }}
     - name: Upload Release Asset
       uses: shogo82148/actions-upload-release-asset@59cbc563d11314e48122193f8fe5cdda62ea6cf9 # v1.9.1
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./target/linux.zip
+        asset_content_type: application/zip
         asset_name: ${{ env.ARTIFACT }}-linux-${{ needs.version.outputs.new_version }}.zip
-        asset_content_type: application/zip
+        asset_path: ./target/linux.zip
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
     - name: Upload Release Asset
       uses: shogo82148/actions-upload-release-asset@59cbc563d11314e48122193f8fe5cdda62ea6cf9 # v1.9.1
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./target/windows.zip
+        asset_content_type: application/zip
         asset_name: ${{ env.ARTIFACT }}-windows-${{ needs.version.outputs.new_version }}.zip
-        asset_content_type: application/zip
+        asset_path: ./target/windows.zip
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
     - name: Upload Release Asset
       uses: shogo82148/actions-upload-release-asset@59cbc563d11314e48122193f8fe5cdda62ea6cf9 # v1.9.1
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./target/macos.zip
-        asset_name: ${{ env.ARTIFACT }}-macos-${{ needs.version.outputs.new_version }}.zip
         asset_content_type: application/zip
+        asset_name: ${{ env.ARTIFACT }}-macos-${{ needs.version.outputs.new_version }}.zip
+        asset_path: ./target/macos.zip
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
     - uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1.20.0
       with:
-        tag: v${{ needs.version.outputs.new_version }}
         allowUpdates: true
         immutableCreate: true
         omitBodyDuringUpdate: true
         omitNameDuringUpdate: true
+        tag: v${{ needs.version.outputs.new_version }}
         updateOnlyUnreleased: true
     - name: Make sure build did not change anything
       run: git diff --exit-code
