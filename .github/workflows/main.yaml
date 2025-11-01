@@ -7,7 +7,6 @@ on:
 permissions: {}
 env:
   ARTIFACT: mvnx
-  JAVA_VERSION: 25
 
 jobs:
   debug:
@@ -74,9 +73,9 @@ jobs:
         persist-credentials: false
     - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
       with:
-        java-version: ${{ env.JAVA_VERSION }}
+        cache: maven
         distribution: temurin
-        cache: 'maven'
+        java-version-file: .tool-versions
     - name: Build with Maven
       run: |
         set -o xtrace
@@ -107,9 +106,9 @@ jobs:
         persist-credentials: false
     - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
       with:
-        java-version: ${{ env.JAVA_VERSION }}
+        cache: maven
         distribution: temurin
-        cache: 'maven'
+        java-version-file: .tool-versions
     - name: Build with Maven
       run: |
         set -o xtrace
@@ -141,9 +140,9 @@ jobs:
         persist-credentials: false
     - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
       with:
-        java-version: ${{ env.JAVA_VERSION }}
+        cache: maven
         distribution: temurin
-        cache: 'maven'
+        java-version-file: .tool-versions
     - name: Build with Maven
       run: |
         .\mvnw --batch-mode -Dsha1="$env:GITHUB_SHA" -Drevision="$env:REVISION" verify
@@ -237,9 +236,9 @@ jobs:
         persist-credentials: false
     - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
       with:
-        java-version: ${{ env.JAVA_VERSION }}
+        cache: maven
         distribution: temurin
-        cache: 'maven'
+        java-version-file: .tool-versions
     - name: Publish to GitHub Packages Apache Maven
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
