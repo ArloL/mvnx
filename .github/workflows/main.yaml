@@ -188,41 +188,15 @@ jobs:
         zip -r linux.zip "${ARTIFACT}-linux-${NEW_VERSION}/"
         zip -r macos.zip "${ARTIFACT}-macos-${NEW_VERSION}/"
     - name: Create Release
-      id: create_release
-      uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1.20.0
-      with:
-        draft: true
-        name: Release ${{ needs.version.outputs.new_version }}
-        tag: v${{ needs.version.outputs.new_version }}
-    - name: Upload Release Asset
-      uses: shogo82148/actions-upload-release-asset@8f6863c6c894ba46f9e676ef5cccec4752723c1e # v1.9.2
-      with:
-        asset_content_type: application/zip
-        asset_name: ${{ env.ARTIFACT }}-linux-${{ needs.version.outputs.new_version }}.zip
-        asset_path: ./target/linux.zip
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-    - name: Upload Release Asset
-      uses: shogo82148/actions-upload-release-asset@8f6863c6c894ba46f9e676ef5cccec4752723c1e # v1.9.2
-      with:
-        asset_content_type: application/zip
-        asset_name: ${{ env.ARTIFACT }}-windows-${{ needs.version.outputs.new_version }}.zip
-        asset_path: ./target/windows.zip
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-    - name: Upload Release Asset
-      uses: shogo82148/actions-upload-release-asset@8f6863c6c894ba46f9e676ef5cccec4752723c1e # v1.9.2
-      with:
-        asset_content_type: application/zip
-        asset_name: ${{ env.ARTIFACT }}-macos-${{ needs.version.outputs.new_version }}.zip
-        asset_path: ./target/macos.zip
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-    - uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1.20.0
-      with:
-        allowUpdates: true
-        immutableCreate: true
-        omitBodyDuringUpdate: true
-        omitNameDuringUpdate: true
-        tag: v${{ needs.version.outputs.new_version }}
-        updateOnlyUnreleased: true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NEW_VERSION: ${{ needs.version.outputs.new_version }}
+      run: |
+        gh release create "v${NEW_VERSION}" \
+          --title "Release ${NEW_VERSION}" \
+          "./target/linux.zip#${ARTIFACT}-linux-${NEW_VERSION}.zip" \
+          "./target/windows.zip#${ARTIFACT}-windows-${NEW_VERSION}.zip" \
+          "./target/macos.zip#${ARTIFACT}-macos-${NEW_VERSION}.zip"
     - name: Make sure build did not change anything
       run: git diff --exit-code
   deploy:
