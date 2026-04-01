@@ -179,14 +179,15 @@ jobs:
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         path: ./target
-    - name: Zip artifacts
+    - name: Prepare artifacts
       working-directory: target
       env:
         NEW_VERSION: ${{ needs.version.outputs.new_version }}
       run: |
-        zip -r windows.zip "${ARTIFACT}-windows-${NEW_VERSION}/"
-        zip -r linux.zip "${ARTIFACT}-linux-${NEW_VERSION}/"
-        zip -r macos.zip "${ARTIFACT}-macos-${NEW_VERSION}/"
+        mkdir artifacts
+        zip -r "artifacts/${ARTIFACT}-windows-${NEW_VERSION}.zip" "${ARTIFACT}-windows-${NEW_VERSION}/"
+        zip -r "artifacts/${ARTIFACT}-linux-${NEW_VERSION}.zip" "${ARTIFACT}-linux-${NEW_VERSION}/"
+        zip -r "artifacts/${ARTIFACT}-macos-${NEW_VERSION}.zip" "${ARTIFACT}-macos-${NEW_VERSION}/"
     - name: Create Release
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -194,9 +195,7 @@ jobs:
       run: |
         gh release create "v${NEW_VERSION}" \
           --title "Release ${NEW_VERSION}" \
-          "./target/linux.zip#${ARTIFACT}-linux-${NEW_VERSION}.zip" \
-          "./target/windows.zip#${ARTIFACT}-windows-${NEW_VERSION}.zip" \
-          "./target/macos.zip#${ARTIFACT}-macos-${NEW_VERSION}.zip"
+          ./target/artifacts/*
     - name: Make sure build did not change anything
       run: git diff --exit-code
   deploy:
