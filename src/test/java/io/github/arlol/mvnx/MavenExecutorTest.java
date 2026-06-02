@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Function;
@@ -361,13 +361,9 @@ public class MavenExecutorTest {
 		Maven maven = new MavenExecutor.Maven();
 		maven.saveToLocalRepository = false;
 		maven.localRepository = TestPaths.get("maven-repository");
-		maven.repositories = Collections.singleton("http://localhost:62085");
+		maven.repositories = List.of("http://localhost:62085");
 		Artifact artifact = d(artifactIdentifier);
-		maven.resolve(
-				artifact,
-				Collections.emptyList(),
-				MavenExecutor::classPathFilter
-		);
+		maven.resolve(artifact, List.of(), MavenExecutor::classPathFilter);
 		return artifact;
 	}
 

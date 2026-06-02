@@ -18,7 +18,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -42,8 +41,6 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 public class MavenExecutor {
 
@@ -114,11 +111,7 @@ public class MavenExecutor {
 	public void execute() throws ClassNotFoundException, IllegalAccessException,
 			InvocationTargetException, NoSuchMethodException,
 			SecurityException {
-		maven.resolve(
-				artifact,
-				Collections.emptyList(),
-				MavenExecutor::classPathFilter
-		);
+		maven.resolve(artifact, List.of(), MavenExecutor::classPathFilter);
 		if (mainClass == null) {
 			mainClass = artifact.properties.get("mainClass");
 		}
@@ -436,10 +429,7 @@ public class MavenExecutor {
 					return value;
 				}
 				if (artifact.parent != null) {
-					value = lookupProperty(
-							key,
-							Collections.singletonList(artifact.parent)
-					);
+					value = lookupProperty(key, List.of(artifact.parent));
 					if (value != null) {
 						return value;
 					}
