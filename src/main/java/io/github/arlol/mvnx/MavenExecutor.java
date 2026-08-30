@@ -236,7 +236,10 @@ public class MavenExecutor {
 						return uri;
 					}
 				}
-			} catch (IOException | InterruptedException e) {
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new IllegalStateException(e);
+			} catch (IOException e) {
 				throw new IllegalStateException(e);
 			}
 			return null;
@@ -267,102 +270,154 @@ public class MavenExecutor {
 			List<Artifact> artifactHierarchy = new ArrayList<>(artifacts);
 			artifactHierarchy.add(artifact);
 
-			Document xmlDocument = pom(artifact);
-			Element projectElement = xmlDocument.getDocumentElement();
-
-			for (int i = 0; i < projectElement.getChildNodes()
-					.getLength(); i++) {
-				Node item = projectElement.getChildNodes().item(i);
-				switch (item.getNodeName()) {
-				case "parent":
-					Artifact parent = artifactFromNode(item);
-					parent.packaging = "pom";
-					resolve(parent, artifactHierarchy, filter);
-					artifact.parent = parent;
-					if (artifact.version == null) {
-						artifact.version = artifact.parent.version;
-						artifact.properties
-								.put("project.version", artifact.version);
-					}
-					if (artifact.groupId == null) {
-						artifact.groupId = artifact.parent.groupId;
-					}
-					break;
-				case "groupId":
-					artifact.groupId = item.getTextContent();
-					break;
-				case "artifactId":
-					artifact.artifactId = item.getTextContent();
-					break;
-				case "version":
-					artifact.version = item.getTextContent();
-					artifact.properties
-							.put("project.version", artifact.version);
-					break;
-				case "packaging":
-					artifact.packaging = item.getTextContent();
-					break;
-				case "properties":
-					NodeList propertyNodes = item.getChildNodes();
-					for (int j = 0; j < propertyNodes.getLength(); j++) {
-						Node propertyNode = propertyNodes.item(j);
-						if (propertyNode.getNodeType() == Node.ELEMENT_NODE) {
-							Element propertyElement = (Element) propertyNode;
-							artifact.properties.put(
-									propertyElement.getTagName(),
-									propertyElement.getTextContent()
-							);
-						}
-					}
-					break;
-				case "dependencyManagement":
-					NodeList dependencyElements = ((Element) item)
-							.getElementsByTagName("dependency");
-					for (int j = 0; j < dependencyElements.getLength(); j++) {
-						Artifact dependency = artifactFromNode(
-								dependencyElements.item(j)
-						);
-						resolveProperties(
-								dependency,
-								key -> lookupProperty(key, artifactHierarchy)
-						);
-						if ("import".equals(dependency.scope)) {
-							resolve(dependency, artifactHierarchy, filter);
-							artifact.dependencyManagement
-									.addAll(dependency.dependencyManagement);
-						} else {
-							artifact.dependencyManagement.add(dependency);
-						}
-					}
-					break;
-				case "dependencies":
-					NodeList dependencyNodes = item.getChildNodes();
-					for (int j = 0; j < dependencyNodes.getLength(); j++) {
-						Node dependencyNode = dependencyNodes.item(j);
-						if (dependencyNode.getNodeType() == Node.ELEMENT_NODE) {
-							Artifact dependency = artifactFromNode(
-									dependencyNode
-							);
-							artifact.dependencies.add(dependency);
-						}
-					}
-					break;
-				}
+			NodeList projectNodes = pom(artifact).getDocumentElement()
+					.getChildNodes();
+			for (int i = 0; i < projectNodes.getLength(); i++) {
+				readProjectNode(
+						artifact,
+						projectNodes.item(i),
+						artifactHierarchy,
+						filter
+				);
 			}
 
-			for (Artifact dependency : artifact.dependencies) {
-				if (filter.test(dependency)) {
-					resolveProperties(
-							dependency,
-							key -> lookupProperty(key, artifactHierarchy)
-					);
-					if (filter.test(dependency)) {
-						manage(dependency, artifactHierarchy);
-						if (filter.test(dependency)) {
-							resolve(dependency, artifactHierarchy, filter);
-						}
-					}
+			resolveDependencies(artifact, artifactHierarchy, filter);
+		}
+
+		private void readProjectNode(
+				Artifact artifact,
+				Node item,
+				List<Artifact> artifactHierarchy,
+				Predicate<Artifact> filter
+		) {
+			switch (item.getNodeName()) {
+			case "parent":
+				readParent(artifact, item, artifactHierarchy, filter);
+				break;
+			case "groupId":
+				artifact.groupId = item.getTextContent();
+				break;
+			case "artifactId":
+				artifact.artifactId = item.getTextContent();
+				break;
+			case "version":
+				artifact.version = item.getTextContent();
+				artifact.properties.put("project.version", artifact.version);
+				break;
+			case "packaging":
+				artifact.packaging = item.getTextContent();
+				break;
+			case "properties":
+				readProperties(artifact, item);
+				break;
+			case "dependencyManagement":
+				readDependencyManagement(
+						artifact,
+						item,
+						artifactHierarchy,
+						filter
+				);
+				break;
+			case "dependencies":
+				readDependencies(artifact, item);
+				break;
+			default:
+				// any other element is irrelevant for resolution
+			}
+		}
+
+		private void readParent(
+				Artifact artifact,
+				Node item,
+				List<Artifact> artifactHierarchy,
+				Predicate<Artifact> filter
+		) {
+			Artifact parent = artifactFromNode(item);
+			parent.packaging = "pom";
+			resolve(parent, artifactHierarchy, filter);
+			artifact.parent = parent;
+			if (artifact.version == null) {
+				artifact.version = parent.version;
+				artifact.properties.put("project.version", artifact.version);
+			}
+			if (artifact.groupId == null) {
+				artifact.groupId = parent.groupId;
+			}
+		}
+
+		private static void readProperties(Artifact artifact, Node item) {
+			NodeList propertyNodes = item.getChildNodes();
+			for (int i = 0; i < propertyNodes.getLength(); i++) {
+				Node propertyNode = propertyNodes.item(i);
+				if (propertyNode.getNodeType() != Node.ELEMENT_NODE) {
+					continue;
 				}
+				Element propertyElement = (Element) propertyNode;
+				artifact.properties.put(
+						propertyElement.getTagName(),
+						propertyElement.getTextContent()
+				);
+			}
+		}
+
+		private void readDependencyManagement(
+				Artifact artifact,
+				Node item,
+				List<Artifact> artifactHierarchy,
+				Predicate<Artifact> filter
+		) {
+			NodeList dependencyElements = ((Element) item)
+					.getElementsByTagName("dependency");
+			for (int i = 0; i < dependencyElements.getLength(); i++) {
+				Artifact dependency = artifactFromNode(
+						dependencyElements.item(i)
+				);
+				resolveProperties(
+						dependency,
+						key -> lookupProperty(key, artifactHierarchy)
+				);
+				if ("import".equals(dependency.scope)) {
+					resolve(dependency, artifactHierarchy, filter);
+					artifact.dependencyManagement
+							.addAll(dependency.dependencyManagement);
+				} else {
+					artifact.dependencyManagement.add(dependency);
+				}
+			}
+		}
+
+		private static void readDependencies(Artifact artifact, Node item) {
+			NodeList dependencyNodes = item.getChildNodes();
+			for (int i = 0; i < dependencyNodes.getLength(); i++) {
+				Node dependencyNode = dependencyNodes.item(i);
+				if (dependencyNode.getNodeType() != Node.ELEMENT_NODE) {
+					continue;
+				}
+				artifact.dependencies.add(artifactFromNode(dependencyNode));
+			}
+		}
+
+		private void resolveDependencies(
+				Artifact artifact,
+				List<Artifact> artifactHierarchy,
+				Predicate<Artifact> filter
+		) {
+			for (Artifact dependency : artifact.dependencies) {
+				if (!filter.test(dependency)) {
+					continue;
+				}
+				resolveProperties(
+						dependency,
+						key -> lookupProperty(key, artifactHierarchy)
+				);
+				if (!filter.test(dependency)) {
+					continue;
+				}
+				manage(dependency, artifactHierarchy);
+				if (!filter.test(dependency)) {
+					continue;
+				}
+				resolve(dependency, artifactHierarchy, filter);
 			}
 		}
 
