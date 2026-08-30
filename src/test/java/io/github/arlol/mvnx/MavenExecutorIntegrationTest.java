@@ -1,15 +1,20 @@
 package io.github.arlol.mvnx;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
+@ExtendWith(OutputCaptureExtension.class)
 public class MavenExecutorIntegrationTest {
 
 	@Test
-	public void testPrint() throws Exception {
+	public void testPrint(CapturedOutput output) throws Exception {
 		Path repository = TestPaths.get("maven-repository");
 		// Overwrite repositories to ensure offline usage
 		MavenExecutor.main(
@@ -18,6 +23,7 @@ public class MavenExecutorIntegrationTest {
 						"http://localhost:62085", "--localRepository",
 						repository.toString() }
 		);
+		assertThat(output).contains("Hello, World!");
 	}
 
 	@Test
@@ -34,13 +40,19 @@ public class MavenExecutorIntegrationTest {
 	}
 
 	@Test
-	public void testWaitForPorts() throws Exception {
+	public void testWaitForPorts(CapturedOutput output) throws Exception {
 		Path repository = TestPaths.get("maven-repository");
 		MavenExecutor.main(
 				new String[] { "com.github.arlol:wait-for-ports:35b1ce08e2",
 						"--saveToLocalRepository", "--localRepository",
 						repository.toString(), "--", "wrongarg" }
 		);
+		assertThat(output).contains("Testing wrongarg : null not supported");
+		assertThat(
+				repository.resolve(
+						"com/github/arlol/wait-for-ports/35b1ce08e2/wait-for-ports-35b1ce08e2.jar"
+				)
+		).exists();
 	}
 
 }
